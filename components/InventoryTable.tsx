@@ -85,7 +85,7 @@ export default function InventoryTable() {
               <TableCell>{product.stock}</TableCell>
               <TableCell>{product.localidade}</TableCell>
               <TableCell>
-                <Button onClick={() => handleEdit(product)} className="mr-2">Editar</Button>
+                <Button onClick={() => handleEdit(product)}>Editar</Button>
                 <Button variant="destructive" onClick={() => handleDelete(product.ref)}>Excluir</Button>
               </TableCell>
             </TableRow>
@@ -95,6 +95,15 @@ export default function InventoryTable() {
       {editingProduct && (
         <EditProductForm product={editingProduct} onUpdate={handleUpdate} onCancel={() => setEditingProduct(null)} />
       )}
+      <div>
+        <Button onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))} disabled={currentPage === 1}>
+          Anterior
+        </Button>
+        <span>Página {currentPage} de {totalPages}</span>
+        <Button onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))} disabled={currentPage === totalPages}>
+          Próximo
+        </Button>
+      </div>
     </div>
   )
 }

@@ -1,8 +1,8 @@
 'use server'
 
 import { google } from 'googleapis'
-import { v4 as uuidv4 } from 'uuid'
-import fs from 'fs'
+//import { v4 as uuidv4 } from 'uuid'
+//import fs from 'fs'
 import { Product } from '@/components/InventoryTable'
 import dotenv from 'dotenv'
 import { Readable } from 'stream'
@@ -30,7 +30,7 @@ const auth = new google.auth.GoogleAuth({
 });
 
 const sheets = google.sheets({ version: 'v4', auth });
-const drive = google.drive({ version: 'v3', auth }); // Initialize Google Drive API
+google.drive({ version: 'v3', auth }); // Initialize Google Drive API
 const SPREADSHEET_ID = '1F0FmaEcFZhvlaQ3D4i22TJj_Q5ST4wJ6SqUcmds90no';
 const RANGE = 'Sheet1!A:H'
 
