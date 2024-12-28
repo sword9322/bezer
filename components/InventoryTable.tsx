@@ -42,6 +42,8 @@ export default function InventoryTable() {
   }
 
   const handleEdit = (product: Product) => {
+    
+    console.log("Editing product:", product);
     setEditingProduct(product)
   }
 
@@ -52,7 +54,7 @@ export default function InventoryTable() {
   }
 
   return (
-    <div>
+    <div className="bg-white rounded-lg shadow-md p-4">
       <Table>
         <TableHeader>
           <TableRow>
@@ -73,7 +75,7 @@ export default function InventoryTable() {
             <TableRow key={product.ref}>
               <TableCell>{product.ref}</TableCell>
               <TableCell>
-                <Button onClick={() => window.open(product.image, '_blank')}>
+                <Button onClick={() => window.open(product.image, '_blank')} className="mr-2">
                   Ver Imagem
                 </Button>
               </TableCell>
@@ -85,8 +87,12 @@ export default function InventoryTable() {
               <TableCell>{product.stock}</TableCell>
               <TableCell>{product.localidade}</TableCell>
               <TableCell>
-                <Button onClick={() => handleEdit(product)}>Editar</Button>
-                <Button variant="destructive" onClick={() => handleDelete(product.ref)}>Excluir</Button>
+                <Button onClick={() => handleEdit(product)} className="bg-blue-500 text-white hover:bg-blue-600 transition duration-200 mr-2">
+                  Editar
+                </Button>
+                <Button variant="destructive" onClick={() => handleDelete(product.ref)} className="bg-red-500 text-white hover:bg-red-600 transition duration-200">
+                  Excluir
+                </Button>
               </TableCell>
             </TableRow>
           ))}
@@ -95,12 +101,12 @@ export default function InventoryTable() {
       {editingProduct && (
         <EditProductForm product={editingProduct} onUpdate={handleUpdate} onCancel={() => setEditingProduct(null)} />
       )}
-      <div>
-        <Button onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))} disabled={currentPage === 1}>
+      <div className="mt-4">
+        <Button onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))} disabled={currentPage === 1} className="mr-2">
           Anterior
         </Button>
         <span>Página {currentPage} de {totalPages}</span>
-        <Button onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))} disabled={currentPage === totalPages}>
+        <Button onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))} disabled={currentPage === totalPages} className="ml-2">
           Próximo
         </Button>
       </div>
