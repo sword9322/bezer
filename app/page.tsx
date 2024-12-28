@@ -46,7 +46,7 @@ export default function Home() {
           <Card>
             <CardHeader>
               <CardTitle>Inventário Atual</CardTitle>
-              <CardDescription>Visualize e gerencie os produtos no inventário.</CardDescription>
+              <CardDescription>Visualize e edite os produtos no inventário.</CardDescription>
             </CardHeader>
             <CardContent>
               <InventoryTable />

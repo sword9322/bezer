@@ -24,6 +24,15 @@ export default function InventoryTable() {
   const [totalPages, setTotalPages] = useState(1)
   const [editingProduct, setEditingProduct] = useState<Product | null>(null)
 
+  const [filters, setFilters] = useState({
+    ref: '',
+    brand: '',
+    campaign: '',
+    date: '',
+    stock: '',
+    localidade: '',
+  });
+
   useEffect(() => {
     fetchProducts()
   }, [currentPage])
@@ -42,7 +51,6 @@ export default function InventoryTable() {
   }
 
   const handleEdit = (product: Product) => {
-    
     console.log("Editing product:", product);
     setEditingProduct(product)
   }
@@ -53,8 +61,70 @@ export default function InventoryTable() {
     fetchProducts()
   }
 
+  const handleFilterChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setFilters({ ...filters, [name]: value });
+  };
+
+  const filteredProducts = products.filter(product => {
+    return (
+      product.ref.includes(filters.ref) &&
+      product.brand.includes(filters.brand) &&
+      product.campaign.includes(filters.campaign) &&
+      product.date.includes(filters.date) &&
+      product.stock.toString().includes(filters.stock) &&
+      product.localidade.includes(filters.localidade)
+    );
+  });
+
   return (
     <div className="bg-white rounded-lg shadow-md p-4">
+      <div className="mb-4">
+        <div className="grid grid-cols-6 gap-4">
+          <input
+            name="ref"
+            placeholder="Ref"
+            value={filters.ref}
+            onChange={handleFilterChange}
+            className="border rounded p-2"
+          />
+          <input
+            name="brand"
+            placeholder="Marca"
+            value={filters.brand}
+            onChange={handleFilterChange}
+            className="border rounded p-2"
+          />
+          <input
+            name="campaign"
+            placeholder="Campanha"
+            value={filters.campaign}
+            onChange={handleFilterChange}
+            className="border rounded p-2"
+          />
+          <input
+            name="date"
+            placeholder="Data"
+            value={filters.date}
+            onChange={handleFilterChange}
+            className="border rounded p-2"
+          />
+          <input
+            name="stock"
+            placeholder="Stock"
+            value={filters.stock}
+            onChange={handleFilterChange}
+            className="border rounded p-2"
+          />
+          <input
+            name="localidade"
+            placeholder="Localidade"
+            value={filters.localidade}
+            onChange={handleFilterChange}
+            className="border rounded p-2"
+          />
+        </div>
+      </div>
       <Table>
         <TableHeader>
           <TableRow>
@@ -65,13 +135,13 @@ export default function InventoryTable() {
             <TableHead>Marca</TableHead>
             <TableHead>Campanha</TableHead>
             <TableHead>Data</TableHead>
-            <TableHead>Estoque</TableHead>
+            <TableHead>Stock</TableHead>
             <TableHead>Localidade</TableHead>
             <TableHead>Ações</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
-          {products.map((product) => (
+          {filteredProducts.map((product) => (
             <TableRow key={product.ref}>
               <TableCell>{product.ref}</TableCell>
               <TableCell>
