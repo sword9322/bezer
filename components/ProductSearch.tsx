@@ -1,12 +1,24 @@
 import React, { useState } from 'react';
-import { Button } from '@/components/ui/button'; // Adjust based on your UI library
-import { Input } from '@/components/ui/input'; // Ensure this import is correct
-import { Label } from '@/components/ui/label'; // Ensure this import is correct
-import { getProductByRef } from '@/app/actions'; // Ensure this function is defined and exported
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { getProductByRef } from '@/app/actions';
+import Image from 'next/image';
+
+type Product = {
+  ref: string;
+  image: string;
+  height: number;
+  width: number;
+  brand: string;
+  campaign: string;
+  stock: number;
+  localidade: string;
+};
 
 const ProductSearch: React.FC = () => {
   const [ref, setRef] = useState('');
-  const [product, setProduct] = useState<any>(null); // Use a specific type if available
+  const [product, setProduct] = useState<Product | null>(null);
   const [error, setError] = useState('');
 
   const handleSearch = async () => {
@@ -18,7 +30,7 @@ const ProductSearch: React.FC = () => {
       } else {
         setError('Product not found');
       }
-    } catch (err) {
+    } catch {
       setError('Error fetching product');
     }
   };
@@ -46,7 +58,7 @@ const ProductSearch: React.FC = () => {
           <p>Width: {product.width}</p>
           <p>Stock: {product.stock}</p>
           <p>Location: {product.localidade}</p>
-          <img src={product.image} alt={product.brand} className="mt-2 rounded-md" />
+          <Image src={product.image} alt={product.brand} width={500} height={300} className="mt-2 rounded-md" />
         </div>
       )}
     </div>
