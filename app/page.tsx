@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Button } from '@/components/ui/button'
 import dotenv from 'dotenv';
+import ProductSearch from '@/components/ProductSearch';
 dotenv.config();
 
 export default function Home() {
@@ -28,6 +29,7 @@ export default function Home() {
         <TabsList>
           <TabsTrigger value="add" className="text-lg font-semibold">Adicionar Produto</TabsTrigger>
           <TabsTrigger value="view" className="text-lg font-semibold">Ver Inventário</TabsTrigger>
+          <TabsTrigger value="search" className="text-lg font-semibold">Procurar Produto</TabsTrigger>
         </TabsList>
         <TabsContent value="add">
           <Card>
@@ -48,6 +50,17 @@ export default function Home() {
             </CardHeader>
             <CardContent>
               <InventoryTable />
+            </CardContent>
+          </Card>
+        </TabsContent>
+        <TabsContent value="search">
+          <Card>
+            <CardHeader>
+              <CardTitle>Procurar Produto</CardTitle>
+              <CardDescription>Pesquise um produto pelo código de referência.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ProductSearch />
             </CardContent>
           </Card>
         </TabsContent>

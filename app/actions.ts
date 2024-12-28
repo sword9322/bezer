@@ -253,3 +253,33 @@ async function testAuth() {
 
 testAuth();
 
+export async function getProductByRef(ref: string) {
+  try {
+    const response = await sheets.spreadsheets.values.get({
+      spreadsheetId: SPREADSHEET_ID,
+      range: 'Sheet1!A2:I',
+    });
+
+    const rows = response.data.values;
+    if (!rows) throw new Error('No data found.');
+
+    const product = rows.find(row => row[0] === ref);
+    if (!product) return null;
+
+    return {
+      ref: product[0],
+      image: product[1],
+      height: Number(product[2]),
+      width: Number(product[3]),
+      brand: product[4],
+      campaign: product[5],
+      date: product[6],
+      stock: Number(product[7]),
+      localidade: product[8],
+    };
+  } catch (error) {
+    console.error('Error fetching product:', error);
+    throw error;
+  }
+}
+
