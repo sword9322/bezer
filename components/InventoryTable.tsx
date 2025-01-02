@@ -7,7 +7,10 @@ import { getProducts, deleteProduct, updateProduct, downloadSheet, appendToDelet
 import EditProductForm from '@/components/EditProductForm'
 import Modal from '@/components/modals'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faDownload, faEdit, faTrash } from '@fortawesome/free-solid-svg-icons';
+import { faDownload, faEdit, faTrash, faImage } from '@fortawesome/free-solid-svg-icons';
+import Image from 'next/image';
+import GoogleDriveIcon from '@/components/icons/google-drive.png';
+import GoogleSheetsIcon from '@/components/icons/sheets.png';
 
 export type Product = {
   ref: string
@@ -114,16 +117,32 @@ export default function InventoryTable() {
     window.open(url, '_blank');
   };
 
+  const openGoogleSheet = () => {
+    window.open(`https://docs.google.com/spreadsheets/d/1F0FmaEcFZhvlaQ3D4i22TJj_Q5ST4wJ6SqUcmds90no`, '_blank')
+  }
+
+  const openGoogleDrive = () => {
+    window.open(`https://drive.google.com/drive/u/2/folders/1jC__wec1icenm-UjqaCqU1EVEEg5Pawv`, '_blank')
+  }
+
   return (
     <div className="bg-white rounded-lg shadow-md p-4 overflow-x-auto">
       <div className="flex justify-between mb-4">
         <Button onClick={() => setShowFilters(prev => !prev)}>
           {showFilters ? 'Esconder Filtros' : 'Mostrar Filtros'}
         </Button>
-        <Button onClick={handleDownload} className="bg-green-500 text-white hover:bg-green-600">
-          <FontAwesomeIcon icon={faDownload} className="mr-2" />
-          Download
-        </Button>
+        <div className="flex space-x-2">
+          <Button onClick={openGoogleSheet} className="flex items-center bg-white border border-gray-300 rounded-md p-2 hover:bg-gray-100 transition duration-200">
+            <Image src={GoogleSheetsIcon} alt="Google Sheets" width={20} height={20} />
+          </Button>
+          <Button onClick={openGoogleDrive} className="flex items-center bg-white border border-gray-300 rounded-md p-2 hover:bg-gray-100 transition duration-200">
+            <Image src={GoogleDriveIcon} alt="Google Drive" width={20} height={20} />
+          </Button>
+          <Button onClick={handleDownload} className="bg-green-500 text-white hover:bg-green-600 transition duration-200 rounded-md p-2">
+            <FontAwesomeIcon icon={faDownload} className="mr-2" />
+            Download
+          </Button>
+        </div>
       </div>
       {showFilters && (
         <div className="flex flex-wrap gap-2 mb-4">
@@ -200,7 +219,7 @@ export default function InventoryTable() {
               <TableCell className="text-center">{product.ref}</TableCell>
               <TableCell className="text-center">
                 <Button onClick={() => window.open(product.image, '_blank')} className="mr-2">
-                  Imagem
+                  <FontAwesomeIcon icon={faImage} />
                 </Button>
               </TableCell>
               <TableCell className="text-center">{product.height}</TableCell>
