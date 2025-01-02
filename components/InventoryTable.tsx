@@ -1,9 +1,9 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Button } from '@/components/ui/button'
-import { getProducts, deleteProduct, updateProduct } from '@/app/actions'
+import { getProducts, deleteProduct, updateProduct, downloadSheet, appendToDeletedProducts } from '@/app/actions'
 import EditProductForm from '@/components/EditProductForm'
 
 export type Product = {
@@ -16,6 +16,7 @@ export type Product = {
   date: string
   stock: number
   localidade: string
+  tipologia: string
 }
 
 export default function InventoryTable() {
@@ -33,22 +34,40 @@ export default function InventoryTable() {
     localidade: '',
   });
 
-  useEffect(() => {
-    fetchProducts()
-  }, [currentPage])
+  const fetchProducts = useCallback(async () => {
+    const result = await getProducts(currentPage);
+    setProducts(result.products);
+    setTotalPages(result.totalPages);
+  }, [currentPage]);
 
-  const fetchProducts = async () => {
-    const result = await getProducts(currentPage)
-    setProducts(result.products)
-    setTotalPages(result.totalPages)
-  }
+  useEffect(() => {
+    fetchProducts();
+  }, [fetchProducts]);
 
   const handleDelete = async (ref: string) => {
     if (window.confirm('Tem certeza que deseja excluir este produto?')) {
-      await deleteProduct(ref)
-      fetchProducts()
+      const productToDelete = products.find(product => product.ref === ref) as Product;
+      
+      if (productToDelete) {
+        await deleteProduct(ref);
+        await appendToDeletedProducts([
+          productToDelete.ref,
+          productToDelete.image,
+          productToDelete.height,
+          productToDelete.width,
+          productToDelete.brand,
+          productToDelete.campaign,
+          productToDelete.date,
+          productToDelete.stock,
+          productToDelete.localidade,
+          productToDelete.tipologia,
+        ]);
+        fetchProducts();
+      } else {
+        console.error('Produto não encontrado');
+      }
     }
-  }
+  };
 
   const handleEdit = (product: Product) => {
     console.log("Editing product:", product);
@@ -77,10 +96,18 @@ export default function InventoryTable() {
     );
   });
 
+  const handleDownload = async () => {
+    const url = await downloadSheet();
+    window.open(url, '_blank');
+  };
+
   return (
-    <div className="bg-white rounded-lg shadow-md p-4">
+    <div className="bg-white rounded-lg shadow-md p-4 overflow-x-auto">
       <div className="mb-4">
-        <div className="grid grid-cols-6 gap-4">
+        <Button onClick={handleDownload} className="mb-4">
+          Baixar Excel
+        </Button>
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
           <input
             name="ref"
             placeholder="Ref"
@@ -137,6 +164,7 @@ export default function InventoryTable() {
             <TableHead>Data</TableHead>
             <TableHead>Stock</TableHead>
             <TableHead>Localidade</TableHead>
+            <TableHead>Tipologia</TableHead>
             <TableHead>Ações</TableHead>
           </TableRow>
         </TableHeader>
@@ -156,6 +184,7 @@ export default function InventoryTable() {
               <TableCell>{product.date}</TableCell>
               <TableCell>{product.stock}</TableCell>
               <TableCell>{product.localidade}</TableCell>
+              <TableCell>{product.tipologia}</TableCell>
               <TableCell>
                 <Button onClick={() => handleEdit(product)} className="bg-blue-500 text-white hover:bg-blue-600 transition duration-200 mr-2">
                   Editar
@@ -171,7 +200,7 @@ export default function InventoryTable() {
       {editingProduct && (
         <EditProductForm product={editingProduct} onUpdate={handleUpdate} onCancel={() => setEditingProduct(null)} />
       )}
-      <div className="mt-4">
+      <div className="mt-4 flex justify-between">
         <Button onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))} disabled={currentPage === 1} className="mr-2">
           Anterior
         </Button>

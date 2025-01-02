@@ -7,6 +7,8 @@ import { Product } from '@/components/InventoryTable'
 import dotenv from 'dotenv'
 import { Readable } from 'stream'
 
+
+
 dotenv.config()
 
 export { addProduct, getProducts, deleteProduct, updateProduct };
@@ -32,15 +34,16 @@ const auth = new google.auth.GoogleAuth({
 const sheets = google.sheets({ version: 'v4', auth });
 google.drive({ version: 'v3', auth }); // Initialize Google Drive API
 const SPREADSHEET_ID = '1F0FmaEcFZhvlaQ3D4i22TJj_Q5ST4wJ6SqUcmds90no';
-const RANGE = 'Sheet1!A:H'
+const RANGE = 'Inventario!A:J'
 
-const COLUMN_TITLES = ['Referência', 'Imagem', 'Altura', 'Largura', 'Marca', 'Campanha', 'Data', 'Estoque', 'Localidade']
+const COLUMN_TITLES = ['Referência', 'Imagem', 'Altura', 'Largura', 'Marca', 'Campanha', 'Data', 'Estoque', 'Localidade', 'Tipologia']
 
 async function addProduct(formData: FormData) {
+  
   try {
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId: SPREADSHEET_ID,
-      range: 'Sheet1!A1:I1',
+      range: 'Inventario!A1:J1',
     })
 
     const existingTitles = response.data.values && response.data.values[0]
@@ -66,10 +69,11 @@ async function addProduct(formData: FormData) {
     const date = formData.get('date')
     const stock = formData.get('stock')
     const localidade = formData.get('localidade')
+    const tipologia = formData.get('tipologia')
     const ref = `REF-${Math.floor(Math.random() * 10000)}`;
 
     const values = [
-      [ref, imageLink, height, width, brand, campaign, date, stock, localidade]
+      [ref, imageLink, height, width, brand, campaign, date, stock, localidade, tipologia]
     ]
 
     await sheets.spreadsheets.values.append({
@@ -92,7 +96,7 @@ async function getProducts(page: number, pageSize: number = 10) {
   try {
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId: SPREADSHEET_ID,
-      range: 'Sheet1!A2:I',
+      range: 'Inventario!A2:J',
     });
 
     const rows = response.data.values;
@@ -108,6 +112,7 @@ async function getProducts(page: number, pageSize: number = 10) {
       date: row[6],
       stock: Number(row[7]),
       localidade: row[8],
+      tipologia: row[9],
     }));
 
     return { products, totalPages: Math.ceil(products.length / pageSize) };
@@ -122,12 +127,32 @@ async function deleteProduct(ref: string) {
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId: SPREADSHEET_ID,
       range: RANGE,
-    })
+    });
 
-    const values = response.data.values || []
-    const rowIndex = values.findIndex(row => row[0] === ref)
+    const values = response.data.values || [];
+    const rowIndex = values.findIndex(row => row[0] === ref);
 
     if (rowIndex !== -1) {
+      const productToDelete = values[rowIndex]; // Get the product details
+
+      // Create a Product object from the productToDelete array
+      const product: Product = {
+        ref: productToDelete[0],
+        image: productToDelete[1],
+        height: Number(productToDelete[2]),
+        width: Number(productToDelete[3]),
+        brand: productToDelete[4],
+        campaign: productToDelete[5],
+        date: productToDelete[6],
+        stock: Number(productToDelete[7]),
+        localidade: productToDelete[8],
+        tipologia: productToDelete[9],
+      };
+
+      // Move the product to the DeletedProducts sheet
+      await moveToDeletedProducts(product);
+
+      // Delete the product from the main sheet
       await sheets.spreadsheets.batchUpdate({
         spreadsheetId: SPREADSHEET_ID,
         requestBody: {
@@ -144,16 +169,57 @@ async function deleteProduct(ref: string) {
             },
           ],
         },
-      })
-      return { success: true }
+      });
+      return { success: true };
     } else {
-      return { success: false, error: 'Produto não encontrado' }
+      return { success: false, error: 'Produto não encontrado' };
     }
   } catch (error) {
-    console.error('Erro ao excluir produto:', error)
-    return { success: false, error: 'Erro ao excluir produto' }
+    console.error('Erro ao excluir produto:', error);
+    return { success: false, error: 'Erro ao excluir produto' };
   }
 }
+
+const moveToDeletedProducts = async (product: Product) => {
+  try {
+    // Fetch existing deleted products to check for duplicates
+    const response = await sheets.spreadsheets.values.get({
+      spreadsheetId: SPREADSHEET_ID,
+      range: 'DeletedProducts!A:A', // Only fetch the reference column
+    });
+
+    const existingDeletedProducts = response.data.values || [];
+    const productExists = existingDeletedProducts.some(row => row[0] === product.ref);
+
+    if (!productExists) {
+      const values = [[
+        product.ref, // ref
+        product.image, // image
+        product.height, // height
+        product.width, // width
+        product.brand, // brand
+        product.campaign, // campaign
+        product.date, // date
+        product.stock, // stock
+        product.localidade, // localidade
+        product.tipologia, // tipologia
+      ]];
+
+      await sheets.spreadsheets.values.append({
+        spreadsheetId: SPREADSHEET_ID,
+        range: 'DeletedProducts!A1:J',
+        valueInputOption: 'USER_ENTERED',
+        requestBody: {
+          values,
+        },
+      });
+    } else {
+      console.log('Produto já existe na lista de excluídos:', product.ref);
+    }
+  } catch (error) {
+    console.error('Erro ao mover produto para excluídos:', error);
+  }
+};
 
 async function updateProduct(updatedProduct: Product) {
   try {
@@ -171,7 +237,7 @@ async function updateProduct(updatedProduct: Product) {
     if (rowIndex === -1) throw new Error('Product not found.');
 
     // Update the product data in the specific row
-    const updateRange = `Sheet1!A${rowIndex + 1}:I${rowIndex + 1}`;
+    const updateRange = `Inventario!A${rowIndex + 1}:J${rowIndex + 1}`;
     await sheets.spreadsheets.values.update({
       spreadsheetId: SPREADSHEET_ID,
       range: updateRange,
@@ -186,7 +252,8 @@ async function updateProduct(updatedProduct: Product) {
           updatedProduct.campaign,
           updatedProduct.date,
           updatedProduct.stock,
-          updatedProduct.localidade
+          updatedProduct.localidade,
+          updatedProduct.tipologia
         ]],
       },
     });
@@ -242,22 +309,11 @@ async function uploadImageToDrive(image: File): Promise<string> {
   throw new Error('Failed to upload image to Google Drive');
 }
 
-async function testAuth() {
-  try {
-    const client = await auth.getClient();
-    console.log('Authentication successful:', client);
-  } catch (error) {
-    console.error('Authentication failed:', error);
-  }
-}
-
-testAuth();
-
 export async function getProductByRef(ref: string) {
   try {
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId: SPREADSHEET_ID,
-      range: 'Sheet1!A2:I',
+      range: 'Inventario!A2:J',
     });
 
     const rows = response.data.values;
@@ -276,10 +332,63 @@ export async function getProductByRef(ref: string) {
       date: product[6],
       stock: Number(product[7]),
       localidade: product[8],
+      tipologia: product[9],
     };
   } catch (error) {
     console.error('Error fetching product:', error);
     throw error;
   }
 }
+
+export async function getDeletedProducts() {
+  try {
+    const response = await sheets.spreadsheets.values.get({
+      spreadsheetId: SPREADSHEET_ID,
+      range: 'DeletedProducts!A1:J', // Fetch all rows starting from the second row
+    });
+
+    const rows = response.data.values;
+    if (!rows) throw new Error('No data found.');
+
+    const products = rows.map(row => ({
+      ref: row[0],
+      image: row[1],
+      height: Number(row[2]),
+      width: Number(row[3]),
+      brand: row[4],
+      campaign: row[5],
+      date: row[6],
+      stock: Number(row[7]),
+      localidade: row[8], // Ensure this is being correctly mapped
+      tipologia: row[9],
+    }));
+
+    return products;
+  } catch (error) {
+    console.error('Erro ao obter produtos excluídos:', error);
+    return [];
+  }
+}
+
+export async function downloadSheet() {
+  const url = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/export?format=xlsx`;
+
+  // This function should not use window.open directly
+  return url; // Return the URL instead
+}
+
+export const appendToDeletedProducts = async (values: (string | number)[]) => {
+  try {
+    await sheets.spreadsheets.values.append({
+      spreadsheetId: SPREADSHEET_ID,
+      range: 'DeletedProducts!A1:J',
+      valueInputOption: 'USER_ENTERED',
+      requestBody: {
+        values: [values],
+      },
+    });
+  } catch (error) {
+    console.error('Erro ao mover produto para excluídos:', error);
+  }
+};
 

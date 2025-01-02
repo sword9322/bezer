@@ -16,11 +16,14 @@ type FormData = {
   date: string
   stock: number
   localidade: string
+  tipologia: string
 }
 
 export default function InventoryForm() {
   const { register, handleSubmit, reset } = useForm<FormData>()
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [customTipologia, setCustomTipologia] = useState('')
+  const [customTipologiaInput, setCustomTipologiaInput] = useState('')
 
   const onSubmit = async (data: FormData) => {
     setIsSubmitting(true)
@@ -34,9 +37,12 @@ export default function InventoryForm() {
       formData.append('date', data.date)
       formData.append('stock', data.stock.toString())
       formData.append('localidade', data.localidade)
+      formData.append('tipologia', customTipologiaInput || data.tipologia)
 
       await addProduct(formData)
       reset()
+      setCustomTipologia('')
+      setCustomTipologiaInput('')
       alert('Produto adicionado com sucesso!')
     } catch (error) {
       console.error('Erro ao adicionar produto:', error)
@@ -64,7 +70,27 @@ export default function InventoryForm() {
       </div>
       <div>
         <Label htmlFor="brand">Marca</Label>
-        <Input id="brand" type="text" {...register('brand', { required: true })} />
+        <select id="brand" {...register('brand', { required: true })} className="border rounded p-2 m-2">
+          <option value="">Selecione uma marca</option>
+          {[
+            "DIOR",
+            "ESTEE LAUDER",
+            "CLIINIQUE",
+            "PRADA",
+            "kiehl's",
+            "YSL",
+            "Lancôme",
+            "Polo Ralph Lauren",
+            "Mugler",
+            "Armani",
+            "Azzaro",
+            "Biotherm",
+            "Clarins",
+            "My Blend"
+          ].map((brand) => (
+            <option key={brand} value={brand}>{brand}</option>
+          ))}
+        </select>
       </div>
       <div>
         <Label htmlFor="campaign">Campanha</Label>
@@ -80,12 +106,50 @@ export default function InventoryForm() {
       </div>
       <div>
         <Label htmlFor="localidade">Localidade</Label>
-        <select id="localidade" {...register('localidade', { required: true })} className="border rounded p-2">
-            <option value="">Selecione uma localidade</option>
-            {["R1", "N1", "N2", "R2", "N3", "N4", "R3", "N5", "N6", "R4", "N7", "N8", "R5", "N9", "N10", "R6", "N11", "N12", "R7", "N13", "N14", "R8", "N15", "N16", "R9", "N17", "N18", "R10", "N19", "N20", "R11", "N21", "N22", "R12", "N23", "N24", "R13", "N25", "N26", "R14", "N27", "N28", "R15", "N29", "N30", "R16", "N31", "N32", "R17", "N33", "N34", "R18", "N35", "N36"].map((localidade) => (
-              <option key={localidade} value={localidade}>{localidade}</option>
-            ))}
-          </select>
+        <select id="localidade" {...register('localidade', { required: true })} className="border rounded p-2 m-2">
+          <option value="">Selecione uma localidade</option>
+          {["R1", "N1", "N2", "R2", "N3", "N4", "R3", "N5", "N6", "R4", "N7", "N8", "R5", "N9", "N10", "R6", "N11", "N12", "R7", "N13", "N14", "R8", "N15", "N16", "R9", "N17", "N18", "R10", "N19", "N20", "R11", "N21", "N22", "R12", "N23", "N24", "R13", "N25", "N26", "R14", "N27", "N28", "R15", "N29", "N30", "R16", "N31", "N32", "R17", "N33", "N34", "R18", "N35", "N36"].map((localidade) => (
+            <option key={localidade} value={localidade}>{localidade}</option>
+          ))}
+        </select>
+      </div>
+      <div>
+        <Label htmlFor="tipologia">Tipologia</Label>
+        <select
+          id="tipologia"
+          {...register('tipologia', { required: true })}
+          className="border rounded p-2 m-2"
+          onChange={(e) => {
+            const selectedValue = e.target.value;
+            if (selectedValue === 'outro') {
+              setCustomTipologia('outro');
+              setCustomTipologiaInput('');
+            } else {
+              setCustomTipologia(selectedValue);
+              setCustomTipologiaInput('');
+            }
+          }}
+        >
+          <option value="">Selecione uma opção</option>
+          <option value="consola">Consola</option>
+          <option value="coluna">Coluna</option>
+          <option value="parede pódio">Parede Pódio</option>
+          <option value="parede mini-pódio">Parede Mini-Pódio</option>
+          <option value="canoppy">Canoppy</option>
+          <option value="estrutura">Estrutura</option>
+          <option value="cadeira">Cadeira</option>
+          <option value="banco">Banco</option>
+          <option value="outro">Outro (com descrição)</option>
+        </select>
+        {customTipologia === 'outro' && (
+          <Input
+            type="text"
+            placeholder="Digite sua descrição"
+            value={customTipologiaInput}
+            onChange={(e) => setCustomTipologiaInput(e.target.value)}
+            className="border rounded p-2 m-2"
+          />
+        )}
       </div>
       <Button type="submit" disabled={isSubmitting}>
         {isSubmitting ? 'Adicionando...' : 'Adicionar Produto'}

@@ -1,12 +1,13 @@
 'use client'
 
 import InventoryForm from '@/components/InventoryForm'
+import DeletedProducts from '@/components/DeletedProducts'
 import InventoryTable from '@/components/InventoryTable'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Button } from '@/components/ui/button'
 import dotenv from 'dotenv';
-import ProductSearch from '@/components/ProductSearch';
+
 dotenv.config();
 
 export default function Home() {
@@ -29,7 +30,7 @@ export default function Home() {
         <TabsList>
           <TabsTrigger value="add" className="text-lg font-semibold">Adicionar Produto</TabsTrigger>
           <TabsTrigger value="view" className="text-lg font-semibold">Ver Inventário</TabsTrigger>
-          <TabsTrigger value="search" className="text-lg font-semibold">Procurar Produto</TabsTrigger>
+          <TabsTrigger value="deleted" className="text-lg font-semibold">Produtos Eliminados</TabsTrigger>
         </TabsList>
         <TabsContent value="add">
           <Card>
@@ -53,14 +54,14 @@ export default function Home() {
             </CardContent>
           </Card>
         </TabsContent>
-        <TabsContent value="search">
+        <TabsContent value="deleted">
           <Card>
             <CardHeader>
-              <CardTitle>Procurar Produto</CardTitle>
-              <CardDescription>Pesquise um produto pelo código de referência.</CardDescription>
+              <CardTitle>Produtos Eliminados</CardTitle>
+              <CardDescription>Visualize e edite os produtos no inventário eliminados.</CardDescription>
             </CardHeader>
             <CardContent>
-              <ProductSearch />
+              <DeletedProducts />
             </CardContent>
           </Card>
         </TabsContent>

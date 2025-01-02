@@ -2,22 +2,11 @@ import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-
-type Product = {
-  ref: string;
-  image: string;
-  height: number;
-  width: number;
-  brand: string;
-  campaign: string;
-  date: string;
-  stock: number;
-  localidade: string;
-};
+import { Product } from '@/components/InventoryTable';
 
 type EditProductFormProps = {
   product: Product;
-  onUpdate: (updatedProduct: Product) => void;
+  onUpdate: (updatedProduct: Product) => Promise<void>;
   onCancel: () => void;
 };
 
