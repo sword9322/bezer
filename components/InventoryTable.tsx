@@ -5,6 +5,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Button } from '@/components/ui/button'
 import { getProducts, deleteProduct, updateProduct, downloadSheet, appendToDeletedProducts } from '@/app/actions'
 import EditProductForm from '@/components/EditProductForm'
+import Modal from '@/components/modals'
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faDownload } from '@fortawesome/free-solid-svg-icons';
 
 export type Product = {
   ref: string
@@ -24,6 +27,7 @@ export default function InventoryTable() {
   const [currentPage, setCurrentPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
   const [editingProduct, setEditingProduct] = useState<Product | null>(null)
+  const [isModalOpen, setIsModalOpen] = useState(false)
 
   const [filters, setFilters] = useState({
     ref: '',
@@ -32,6 +36,7 @@ export default function InventoryTable() {
     date: '',
     stock: '',
     localidade: '',
+    tipologia: '',
   });
 
   const fetchProducts = useCallback(async () => {
@@ -70,15 +75,21 @@ export default function InventoryTable() {
   };
 
   const handleEdit = (product: Product) => {
-    console.log("Editing product:", product);
-    setEditingProduct(product)
-  }
+    setEditingProduct(product);
+    setIsModalOpen(true);
+  };
+
+  const handleCloseModal = () => {
+    setIsModalOpen(false);
+    setEditingProduct(null);
+  };
 
   const handleUpdate = async (updatedProduct: Product) => {
-    await updateProduct(updatedProduct)
-    setEditingProduct(null)
-    fetchProducts()
-  }
+    await updateProduct(updatedProduct);
+    setEditingProduct(null);
+    setIsModalOpen(false);
+    fetchProducts();
+  };
 
   const handleFilterChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -87,12 +98,13 @@ export default function InventoryTable() {
 
   const filteredProducts = products.filter(product => {
     return (
-      product.ref.includes(filters.ref) &&
-      product.brand.includes(filters.brand) &&
-      product.campaign.includes(filters.campaign) &&
-      product.date.includes(filters.date) &&
+      product.ref.toLowerCase().includes(filters.ref.toLowerCase()) &&
+      product.brand.toLowerCase().includes(filters.brand.toLowerCase()) &&
+      product.campaign.toLowerCase().includes(filters.campaign.toLowerCase()) &&
+      product.date.toLowerCase().includes(filters.date.toLowerCase()) &&
       product.stock.toString().includes(filters.stock) &&
-      product.localidade.includes(filters.localidade)
+      product.localidade.toLowerCase().includes(filters.localidade.toLowerCase()) &&
+      (product.tipologia?.toLowerCase().includes(filters.tipologia.toLowerCase()) || !filters.tipologia)
     );
   });
 
@@ -105,87 +117,94 @@ export default function InventoryTable() {
     <div className="bg-white rounded-lg shadow-md p-4 overflow-x-auto">
       <div className="mb-4">
         <Button onClick={handleDownload} className="mb-4">
-          Baixar Excel
+          <FontAwesomeIcon icon={faDownload} className="mr-2" />
         </Button>
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+        <div className="flex flex-wrap gap-2">
           <input
             name="ref"
             placeholder="Ref"
             value={filters.ref}
             onChange={handleFilterChange}
-            className="border rounded p-2"
+            className="border rounded p-1 text-sm text-center w-36"
           />
           <input
             name="brand"
             placeholder="Marca"
             value={filters.brand}
             onChange={handleFilterChange}
-            className="border rounded p-2"
+            className="border rounded p-1 text-sm text-center w-60"
           />
           <input
             name="campaign"
             placeholder="Campanha"
             value={filters.campaign}
             onChange={handleFilterChange}
-            className="border rounded p-2"
+            className="border rounded p-1 text-sm text-center w-60"
           />
           <input
             name="date"
             placeholder="Data"
             value={filters.date}
             onChange={handleFilterChange}
-            className="border rounded p-2"
+            className="border rounded p-1 text-sm text-center w-60"
           />
           <input
             name="stock"
             placeholder="Stock"
             value={filters.stock}
             onChange={handleFilterChange}
-            className="border rounded p-2"
+            className="border rounded p-1 text-sm text-center w-15"
           />
           <input
             name="localidade"
             placeholder="Localidade"
             value={filters.localidade}
             onChange={handleFilterChange}
-            className="border rounded p-2"
+            className="border rounded p-1 text-sm text-center w-15"
+          />
+          <input
+            name="tipologia"
+            placeholder="Tipologia"
+            value={filters.tipologia}
+            onChange={handleFilterChange}
+            className="border rounded p-1 text-sm text-center w-40"
           />
         </div>
       </div>
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>Referência</TableHead>
-            <TableHead>Imagem</TableHead>
-            <TableHead>Altura</TableHead>
-            <TableHead>Largura</TableHead>
-            <TableHead>Marca</TableHead>
-            <TableHead>Campanha</TableHead>
-            <TableHead>Data</TableHead>
-            <TableHead>Stock</TableHead>
-            <TableHead>Localidade</TableHead>
-            <TableHead>Tipologia</TableHead>
-            <TableHead>Ações</TableHead>
+            <TableHead className="text-center font-bold">Referência</TableHead>
+            <TableHead className="text-center font-bold">Imagem</TableHead>
+            <TableHead className="text-center font-bold">Altura</TableHead>
+            <TableHead className="text-center font-bold">Largura</TableHead>
+            <TableHead className="text-center font-bold">Marca</TableHead>
+            <TableHead className="text-center font-bold">Campanha</TableHead>
+            <TableHead className="text-center font-bold">Data</TableHead>
+            <TableHead className="text-center font-bold">Stock</TableHead>
+            <TableHead className="text-center font-bold">Localidade</TableHead>
+            <TableHead className="text-center font-bold">Tipologia</TableHead>
+            <TableHead className="text-center font-bold">Ações</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {filteredProducts.map((product) => (
             <TableRow key={product.ref}>
-              <TableCell>{product.ref}</TableCell>
-              <TableCell>
+              <TableCell className="text-center">{product.ref}</TableCell>
+              <TableCell className="text-center">
                 <Button onClick={() => window.open(product.image, '_blank')} className="mr-2">
-                  Ver Imagem
+                  Imagem
                 </Button>
               </TableCell>
-              <TableCell>{product.height}</TableCell>
-              <TableCell>{product.width}</TableCell>
-              <TableCell>{product.brand}</TableCell>
-              <TableCell>{product.campaign}</TableCell>
-              <TableCell>{product.date}</TableCell>
-              <TableCell>{product.stock}</TableCell>
-              <TableCell>{product.localidade}</TableCell>
-              <TableCell>{product.tipologia}</TableCell>
-              <TableCell>
+              <TableCell className="text-center">{product.height}</TableCell>
+              <TableCell className="text-center">{product.width}</TableCell>
+              <TableCell className="text-center">{product.brand}</TableCell>
+              <TableCell className="text-center">{product.campaign}</TableCell>
+              <TableCell className="text-center">{product.date}</TableCell>
+              <TableCell className="text-center">{product.stock}</TableCell>
+              <TableCell className="text-center">{product.localidade}</TableCell>
+              <TableCell className="text-center">{product.tipologia}</TableCell>
+              <TableCell className="text-center">
                 <Button onClick={() => handleEdit(product)} className="bg-blue-500 text-white hover:bg-blue-600 transition duration-200 mr-2">
                   Editar
                 </Button>
@@ -197,9 +216,11 @@ export default function InventoryTable() {
           ))}
         </TableBody>
       </Table>
-      {editingProduct && (
-        <EditProductForm product={editingProduct} onUpdate={handleUpdate} onCancel={() => setEditingProduct(null)} />
-      )}
+      <Modal isOpen={isModalOpen} onClose={handleCloseModal}>
+        {editingProduct && (
+          <EditProductForm product={editingProduct} onUpdate={handleUpdate} onCancel={handleCloseModal} />
+        )}
+      </Modal>
       <div className="mt-4 flex justify-between">
         <Button onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))} disabled={currentPage === 1} className="mr-2">
           Anterior
