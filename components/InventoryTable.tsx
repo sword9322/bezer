@@ -7,7 +7,7 @@ import { getProducts, deleteProduct, updateProduct, downloadSheet, appendToDelet
 import EditProductForm from '@/components/EditProductForm'
 import Modal from '@/components/modals'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faDownload } from '@fortawesome/free-solid-svg-icons';
+import { faDownload, faEdit, faTrash } from '@fortawesome/free-solid-svg-icons';
 
 export type Product = {
   ref: string
@@ -28,6 +28,7 @@ export default function InventoryTable() {
   const [totalPages, setTotalPages] = useState(1)
   const [editingProduct, setEditingProduct] = useState<Product | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const [showFilters, setShowFilters] = useState(false)
 
   const [filters, setFilters] = useState({
     ref: '',
@@ -115,11 +116,17 @@ export default function InventoryTable() {
 
   return (
     <div className="bg-white rounded-lg shadow-md p-4 overflow-x-auto">
-      <div className="mb-4">
-        <Button onClick={handleDownload} className="mb-4">
-          <FontAwesomeIcon icon={faDownload} className="mr-2" />
+      <div className="flex justify-between mb-4">
+        <Button onClick={() => setShowFilters(prev => !prev)}>
+          {showFilters ? 'Esconder Filtros' : 'Mostrar Filtros'}
         </Button>
-        <div className="flex flex-wrap gap-2">
+        <Button onClick={handleDownload} className="bg-green-500 text-white hover:bg-green-600">
+          <FontAwesomeIcon icon={faDownload} className="mr-2" />
+          Download
+        </Button>
+      </div>
+      {showFilters && (
+        <div className="flex flex-wrap gap-2 mb-4">
           <input
             name="ref"
             placeholder="Ref"
@@ -170,7 +177,7 @@ export default function InventoryTable() {
             className="border rounded p-1 text-sm text-center w-40"
           />
         </div>
-      </div>
+      )}
       <Table>
         <TableHeader>
           <TableRow>
@@ -206,10 +213,10 @@ export default function InventoryTable() {
               <TableCell className="text-center">{product.tipologia}</TableCell>
               <TableCell className="text-center">
                 <Button onClick={() => handleEdit(product)} className="bg-blue-500 text-white hover:bg-blue-600 transition duration-200 mr-2">
-                  Editar
+                  <FontAwesomeIcon icon={faEdit} />
                 </Button>
                 <Button variant="destructive" onClick={() => handleDelete(product.ref)} className="bg-red-500 text-white hover:bg-red-600 transition duration-200">
-                  Excluir
+                  <FontAwesomeIcon icon={faTrash} />
                 </Button>
               </TableCell>
             </TableRow>
