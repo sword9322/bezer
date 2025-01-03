@@ -6,17 +6,18 @@ interface ModalProps {
   children: React.ReactNode;
 }
 
-const Modal: React.FC<ModalProps> = ({ isOpen, onClose, children }) => {
+export default function Modal({ isOpen, onClose, children }: ModalProps) {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50">
-      <div className="bg-white rounded-lg p-4 shadow-lg">
-        <button onClick={onClose} className="absolute top-2 right-2">X</button>
+    <div className="fixed inset-0 z-50 flex items-center justify-center">
+      <div 
+        className="fixed inset-0 bg-black bg-opacity-50 transition-opacity"
+        onClick={onClose}
+      />
+      <div className="relative z-50 max-h-[90vh] overflow-y-auto bg-white rounded-lg shadow-xl">
         {children}
       </div>
     </div>
   );
-};
-
-export default Modal;
+}

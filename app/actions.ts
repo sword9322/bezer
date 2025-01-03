@@ -34,16 +34,17 @@ const auth = new google.auth.GoogleAuth({
 const sheets = google.sheets({ version: 'v4', auth });
 google.drive({ version: 'v3', auth }); // Initialize Google Drive API
 const SPREADSHEET_ID = '1F0FmaEcFZhvlaQ3D4i22TJj_Q5ST4wJ6SqUcmds90no';
-const RANGE = 'Inventario!A:J'
+const RANGE = 'Inventario!A:K'
+const BRANDS_RANGE = 'Brands!A:A'; // Range for brands
 
-const COLUMN_TITLES = ['Referência', 'Imagem', 'Altura', 'Largura', 'Marca', 'Campanha', 'Data', 'Estoque', 'Localidade', 'Tipologia']
+const COLUMN_TITLES = ['Referência', 'Imagem', 'Altura', 'Largura', 'Marca', 'Campanha', 'Data', 'Estoque', 'Localidade', 'Tipologia', 'Notas']
 
 async function addProduct(formData: FormData) {
   
   try {
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId: SPREADSHEET_ID,
-      range: 'Inventario!A1:J1',
+      range: 'Inventario!A1:K1',
     })
 
     const existingTitles = response.data.values && response.data.values[0]
@@ -70,10 +71,11 @@ async function addProduct(formData: FormData) {
     const stock = formData.get('stock')
     const localidade = formData.get('localidade')
     const tipologia = formData.get('tipologia')
+    const notes = formData.get('notes')
     const ref = `REF-${Math.floor(Math.random() * 10000)}`;
 
     const values = [
-      [ref, imageLink, height, width, brand, campaign, date, stock, localidade, tipologia]
+      [ref, imageLink, height, width, brand, campaign, date, stock, localidade, tipologia, notes]
     ]
 
     await sheets.spreadsheets.values.append({
@@ -96,7 +98,7 @@ async function getProducts(page: number, pageSize: number = 10) {
   try {
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId: SPREADSHEET_ID,
-      range: 'Inventario!A2:J',
+      range: 'Inventario!A2:K',
     });
 
     const rows = response.data.values;
@@ -113,6 +115,7 @@ async function getProducts(page: number, pageSize: number = 10) {
       stock: Number(row[7]),
       localidade: row[8],
       tipologia: row[9],
+      notes: row[10] || ''
     }));
 
     return { products, totalPages: Math.ceil(products.length / pageSize) };
@@ -133,26 +136,19 @@ async function deleteProduct(ref: string) {
     const rowIndex = values.findIndex(row => row[0] === ref);
 
     if (rowIndex !== -1) {
-      const productToDelete = values[rowIndex]; // Get the product details
+      const productToDelete = values[rowIndex];
 
-      // Create a Product object from the productToDelete array
-      const product: Product = {
-        ref: productToDelete[0],
-        image: productToDelete[1],
-        height: Number(productToDelete[2]),
-        width: Number(productToDelete[3]),
-        brand: productToDelete[4],
-        campaign: productToDelete[5],
-        date: productToDelete[6],
-        stock: Number(productToDelete[7]),
-        localidade: productToDelete[8],
-        tipologia: productToDelete[9],
-      };
+      // Move to DeletedProducts first
+      await sheets.spreadsheets.values.append({
+        spreadsheetId: SPREADSHEET_ID,
+        range: 'DeletedProducts!A1:K',
+        valueInputOption: 'USER_ENTERED',
+        requestBody: {
+          values: [productToDelete],
+        },
+      });
 
-      // Move the product to the DeletedProducts sheet
-      await moveToDeletedProducts(product);
-
-      // Delete the product from the main sheet
+      // Then delete from main inventory
       await sheets.spreadsheets.batchUpdate({
         spreadsheetId: SPREADSHEET_ID,
         requestBody: {
@@ -160,7 +156,7 @@ async function deleteProduct(ref: string) {
             {
               deleteDimension: {
                 range: {
-                  sheetId: 0,
+                  sheetId: 0, // Main inventory sheet
                   dimension: 'ROWS',
                   startIndex: rowIndex,
                   endIndex: rowIndex + 1,
@@ -180,65 +176,43 @@ async function deleteProduct(ref: string) {
   }
 }
 
-const moveToDeletedProducts = async (product: Product) => {
-  try {
-    // Fetch existing deleted products to check for duplicates
-    const response = await sheets.spreadsheets.values.get({
-      spreadsheetId: SPREADSHEET_ID,
-      range: 'DeletedProducts!A:A', // Only fetch the reference column
-    });
-
-    const existingDeletedProducts = response.data.values || [];
-    const productExists = existingDeletedProducts.some(row => row[0] === product.ref);
-
-    if (!productExists) {
-      const values = [[
-        product.ref, // ref
-        product.image, // image
-        product.height, // height
-        product.width, // width
-        product.brand, // brand
-        product.campaign, // campaign
-        product.date, // date
-        product.stock, // stock
-        product.localidade, // localidade
-        product.tipologia, // tipologia
-      ]];
-
-      await sheets.spreadsheets.values.append({
-        spreadsheetId: SPREADSHEET_ID,
-        range: 'DeletedProducts!A1:J',
-        valueInputOption: 'USER_ENTERED',
-        requestBody: {
-          values,
-        },
-      });
-    } else {
-      console.log('Produto já existe na lista de excluídos:', product.ref);
-    }
-  } catch (error) {
-    console.error('Erro ao mover produto para excluídos:', error);
-  }
-};
-
 async function updateProduct(updatedProduct: Product) {
   try {
-    // Fetch all products to find the row index of the product to update
+    console.log('Updating product:', updatedProduct);
+    
+    // Get all values to find the correct row
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId: SPREADSHEET_ID,
-      range: RANGE,
+      range: 'Inventario!A:K',
     });
 
     const rows = response.data.values;
     if (!rows) throw new Error('No data found.');
 
-    // Find the row index of the product to update
+    // Find the row index (add 1 because row 1 is headers)
     const rowIndex = rows.findIndex(row => row[0] === updatedProduct.ref);
     if (rowIndex === -1) throw new Error('Product not found.');
 
+    console.log('Found product at row:', rowIndex + 1);
+
     // Update the product data in the specific row
-    const updateRange = `Inventario!A${rowIndex + 1}:J${rowIndex + 1}`;
-    await sheets.spreadsheets.values.update({
+    const updateRange = `Inventario!A${rowIndex + 1}:K${rowIndex + 1}`;
+    console.log('Updating range:', updateRange);
+    console.log('Update values:', [
+      updatedProduct.ref,
+      updatedProduct.image,
+      updatedProduct.height,
+      updatedProduct.width,
+      updatedProduct.brand,
+      updatedProduct.campaign,
+      updatedProduct.date,
+      updatedProduct.stock,
+      updatedProduct.localidade,
+      updatedProduct.tipologia,
+      updatedProduct.notes || '' // Ensure notes is never undefined
+    ]);
+
+    const updateResponse = await sheets.spreadsheets.values.update({
       spreadsheetId: SPREADSHEET_ID,
       range: updateRange,
       valueInputOption: 'USER_ENTERED',
@@ -253,11 +227,13 @@ async function updateProduct(updatedProduct: Product) {
           updatedProduct.date,
           updatedProduct.stock,
           updatedProduct.localidade,
-          updatedProduct.tipologia
+          updatedProduct.tipologia,
+          updatedProduct.notes || '' // Ensure notes is never undefined
         ]],
       },
     });
 
+    console.log('Update response:', updateResponse.data);
     return { success: true };
   } catch (error) {
     console.error('Erro ao atualizar produto:', error);
@@ -344,7 +320,7 @@ export async function getDeletedProducts() {
   try {
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId: SPREADSHEET_ID,
-      range: 'DeletedProducts!A1:J', // Fetch all rows starting from the second row
+      range: 'DeletedProducts!A1:K',
     });
 
     const rows = response.data.values;
@@ -359,8 +335,9 @@ export async function getDeletedProducts() {
       campaign: row[5],
       date: row[6],
       stock: Number(row[7]),
-      localidade: row[8], // Ensure this is being correctly mapped
+      localidade: row[8],
       tipologia: row[9],
+      notes: row[10] || ''
     }));
 
     return products;
@@ -381,7 +358,7 @@ export const appendToDeletedProducts = async (values: (string | number)[]) => {
   try {
     await sheets.spreadsheets.values.append({
       spreadsheetId: SPREADSHEET_ID,
-      range: 'DeletedProducts!A1:J',
+      range: 'DeletedProducts!A1:K',
       valueInputOption: 'USER_ENTERED',
       requestBody: {
         values: [values],
@@ -391,4 +368,190 @@ export const appendToDeletedProducts = async (values: (string | number)[]) => {
     console.error('Erro ao mover produto para excluídos:', error);
   }
 };
+
+export const fetchBrands = async () => {
+  const response = await sheets.spreadsheets.values.get({
+    spreadsheetId: SPREADSHEET_ID,
+    range: BRANDS_RANGE,
+  });
+  return response.data.values?.flat() || [];
+};
+
+export const addBrand = async (brand: string) => {
+  await sheets.spreadsheets.values.append({
+    spreadsheetId: SPREADSHEET_ID,
+    range: BRANDS_RANGE,
+    valueInputOption: 'USER_ENTERED',
+    requestBody: {
+      values: [[brand]],
+    },
+  });
+};
+
+export const removeBrand = async (brand: string) => {
+  try {
+    // Get the spreadsheet metadata to find the correct sheet ID
+    const spreadsheet = await sheets.spreadsheets.get({
+      spreadsheetId: SPREADSHEET_ID,
+    });
+
+    const brandsSheet = spreadsheet.data.sheets?.find(
+      sheet => sheet.properties?.title === 'Brands'
+    );
+
+    if (!brandsSheet?.properties?.sheetId) {
+      throw new Error('Brands sheet not found');
+    }
+
+    // Get all brands to find the row index
+    const response = await sheets.spreadsheets.values.get({
+      spreadsheetId: SPREADSHEET_ID,
+      range: BRANDS_RANGE,
+    });
+
+    const rows = response.data.values;
+    if (!rows) throw new Error('No data found.');
+
+    const rowIndex = rows.findIndex(row => row[0] === brand);
+    if (rowIndex === -1) throw new Error('Brand not found.');
+
+    // Delete the row using batchUpdate
+    await sheets.spreadsheets.batchUpdate({
+      spreadsheetId: SPREADSHEET_ID,
+      requestBody: {
+        requests: [{
+          deleteDimension: {
+            range: {
+              sheetId: brandsSheet.properties.sheetId,
+              dimension: 'ROWS',
+              startIndex: rowIndex,
+              endIndex: rowIndex + 1
+            }
+          }
+        }]
+      }
+    });
+
+    return { success: true };
+  } catch (error) {
+    console.error('Error removing brand:', error);
+    return { success: false, error: 'Failed to remove brand' };
+  }
+};
+
+export const deleteProductFull = async (ref: string) => {
+  try {
+    // First, get the spreadsheet metadata to find the correct sheet ID
+    const spreadsheet = await sheets.spreadsheets.get({
+      spreadsheetId: SPREADSHEET_ID,
+    });
+
+    // Find the DeletedProducts sheet ID
+    const deletedProductsSheet = spreadsheet.data.sheets?.find(
+      sheet => sheet.properties?.title === 'DeletedProducts'
+    );
+
+    if (!deletedProductsSheet?.properties?.sheetId) {
+      throw new Error('DeletedProducts sheet not found');
+    }
+
+    // Get the row index
+    const response = await sheets.spreadsheets.values.get({
+      spreadsheetId: SPREADSHEET_ID,
+      range: 'DeletedProducts!A:K',
+    });
+
+    const rows = response.data.values;
+    if (!rows) throw new Error('No data found.');
+
+    const rowIndex = rows.findIndex(row => row[0] === ref);
+    if (rowIndex === -1) throw new Error('Product not found.');
+
+    // Delete the row using the correct sheet ID
+    await sheets.spreadsheets.batchUpdate({
+      spreadsheetId: SPREADSHEET_ID,
+      requestBody: {
+        requests: [{
+          deleteDimension: {
+            range: {
+              sheetId: deletedProductsSheet.properties.sheetId,
+              dimension: 'ROWS',
+              startIndex: rowIndex,
+              endIndex: rowIndex + 1
+            }
+          }
+        }]
+      }
+    });
+
+    return { success: true };
+  } catch (error) {
+    console.error('Erro ao excluir produto:', error);
+    return { success: false, error: 'Erro ao excluir produto' };
+  }
+};
+
+export const restoreProduct = async (ref: string) => {
+  try {
+    // Get the product from DeletedProducts
+    const response = await sheets.spreadsheets.values.get({
+      spreadsheetId: SPREADSHEET_ID,
+      range: 'DeletedProducts!A:K',
+    });
+
+    const rows = response.data.values;
+    if (!rows) throw new Error('No data found.');
+
+    const rowIndex = rows.findIndex(row => row[0] === ref);
+    if (rowIndex === -1) throw new Error('Product not found.');
+
+    const productToRestore = rows[rowIndex];
+
+    // Add the product back to Inventory
+    await sheets.spreadsheets.values.append({
+      spreadsheetId: SPREADSHEET_ID,
+      range: RANGE,
+      valueInputOption: 'USER_ENTERED',
+      requestBody: {
+        values: [productToRestore],
+      },
+    });
+
+    // Delete from DeletedProducts
+    const spreadsheet = await sheets.spreadsheets.get({
+      spreadsheetId: SPREADSHEET_ID,
+    });
+
+    const deletedProductsSheet = spreadsheet.data.sheets?.find(
+      sheet => sheet.properties?.title === 'DeletedProducts'
+    );
+
+    if (!deletedProductsSheet?.properties?.sheetId) {
+      throw new Error('DeletedProducts sheet not found');
+    }
+
+    await sheets.spreadsheets.batchUpdate({
+      spreadsheetId: SPREADSHEET_ID,
+      requestBody: {
+        requests: [{
+          deleteDimension: {
+            range: {
+              sheetId: deletedProductsSheet.properties.sheetId,
+              dimension: 'ROWS',
+              startIndex: rowIndex,
+              endIndex: rowIndex + 1
+            }
+          }
+        }]
+      }
+    });
+
+    return { success: true };
+  } catch (error) {
+    console.error('Erro ao restaurar produto:', error);
+    return { success: false, error: 'Erro ao restaurar produto' };
+  }
+};
+
+
 
