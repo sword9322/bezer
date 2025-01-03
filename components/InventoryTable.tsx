@@ -7,7 +7,7 @@ import { getProducts, deleteProduct, updateProduct, downloadSheet } from '@/app/
 import EditProductForm from '@/components/EditProductForm'
 import Modal from '@/components/modals'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faDownload, faEdit, faTrash, faImage, faEye, faBoxes, faBoxOpen, faPlus, faTrashRestore, faFilter, faChevronLeft, faChevronRight, faTimes, faCog } from '@fortawesome/free-solid-svg-icons';
+import { faDownload, faEdit, faTrash, faImage, faEye, faBoxes, faBoxOpen, faPlus, faTrashRestore, faFilter, faChevronLeft, faChevronRight, faTimes, faCog, faSort, faSortUp, faSortDown } from '@fortawesome/free-solid-svg-icons';
 import Image from 'next/image';
 import GoogleDriveIcon from '@/components/icons/google-drive.png';
 import GoogleSheetsIcon from '@/components/icons/sheets.png';
@@ -44,6 +44,10 @@ export default function InventoryTable() {
   const [editingNotes, setEditingNotes] = useState(false);
   const [addProductModalOpen, setAddProductModalOpen] = useState(false);
   const [deletedProductsModalOpen, setDeletedProductsModalOpen] = useState(false);
+  const [sortConfig, setSortConfig] = useState<{
+    key: keyof Product | null;
+    direction: 'asc' | 'desc';
+  }>({ key: null, direction: 'asc' });
 
   const [filters, setFilters] = useState({
     ref: '',
@@ -165,8 +169,32 @@ export default function InventoryTable() {
     }
   };
 
+  const handleSort = (key: keyof Product) => {
+    let direction: 'asc' | 'desc' = 'asc';
+    if (sortConfig.key === key && sortConfig.direction === 'asc') {
+      direction = 'desc';
+    }
+    setSortConfig({ key, direction });
+  };
+
+  const getSortedProducts = (products: Product[]) => {
+    if (!sortConfig.key) return products;
+
+    return [...products].sort((a, b) => {
+      if (a[sortConfig.key!] < b[sortConfig.key!]) {
+        return sortConfig.direction === 'asc' ? -1 : 1;
+      }
+      if (a[sortConfig.key!] > b[sortConfig.key!]) {
+        return sortConfig.direction === 'asc' ? 1 : -1;
+      }
+      return 0;
+    });
+  };
+
+  const sortedAndFilteredProducts = getSortedProducts(filteredProducts);
+
   return (
-    <div className="container mx-auto p-6 max-w-7xl">
+    <div className="container mx-auto p-7 max-w-7xl">
       {/* Statistics and Action Buttons Section */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
         <Card className="bg-gradient-to-br from-blue-500 to-blue-600 text-white">
@@ -174,7 +202,7 @@ export default function InventoryTable() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium opacity-75">Total Products</p>
-                <h3 className="text-3xl font-bold mt-1">{products.length}</h3>
+                <h3 className="text-4xl font-bold mt-1">{products.length}</h3>
               </div>
               <div className="p-3 bg-blue-400 bg-opacity-40 rounded-full">
                 <FontAwesomeIcon icon={faBoxes} className="text-2xl" />
@@ -188,7 +216,7 @@ export default function InventoryTable() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium opacity-75">Total Stock</p>
-                <h3 className="text-3xl font-bold mt-1">
+                <h3 className="text-4xl font-bold mt-1">
                   {products.reduce((total, product) => total + product.stock, 0)}
                 </h3>
               </div>
@@ -205,21 +233,21 @@ export default function InventoryTable() {
             className="flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white p-4 rounded-lg transition-all transform hover:scale-105"
           >
             <FontAwesomeIcon icon={faPlus} className="text-xl" />
-            <span className="font-semibold">Add New Product</span>
+            <span className="font-semibold">Adicionar Produto</span>
           </Button>
           <Button 
             onClick={() => setDeletedProductsModalOpen(true)}
             className="flex items-center justify-center gap-2 bg-gray-600 hover:bg-gray-700 text-white p-4 rounded-lg transition-all transform hover:scale-105"
           >
             <FontAwesomeIcon icon={faTrashRestore} className="text-xl" />
-            <span className="font-semibold">View Deleted Products</span>
+            <span className="font-semibold">Produtos Eliminados</span>
           </Button>
           <Link href="/settings" className="w-full">
             <Button 
               className="w-full flex items-center justify-center gap-2 bg-purple-600 hover:bg-purple-700 text-white p-4 rounded-lg transition-all transform hover:scale-105"
             >
               <FontAwesomeIcon icon={faCog} className="text-xl" />
-              <span className="font-semibold">Settings</span>
+              <span className="font-semibold">Definições</span>
             </Button>
           </Link>
         </div>
@@ -255,28 +283,28 @@ export default function InventoryTable() {
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4 mb-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
           <input
             name="ref"
-            placeholder="Reference"
+            placeholder="Ref"
             value={filters.ref}
             onChange={handleFilterChange}
             className="w-full px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
           />
           <input
             name="brand"
-            placeholder="Brand"
+            placeholder="Marca"
             value={filters.brand}
             onChange={handleFilterChange}
             className="w-full px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
           />
           <input
             name="campaign"
-            placeholder="Campaign"
+            placeholder="Campanha"
             value={filters.campaign}
             onChange={handleFilterChange}
             className="w-full px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
           />
           <input
             name="date"
-            placeholder="Date"
+            placeholder="Data"
             value={filters.date}
             onChange={handleFilterChange}
             className="w-full px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
@@ -290,14 +318,14 @@ export default function InventoryTable() {
           />
           <input
             name="localidade"
-            placeholder="Location"
+            placeholder="Localização"
             value={filters.localidade}
             onChange={handleFilterChange}
             className="w-full px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
           />
           <input
             name="tipologia"
-            placeholder="Type"
+            placeholder="Tipo"
             value={filters.tipologia}
             onChange={handleFilterChange}
             className="w-full px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
@@ -310,21 +338,147 @@ export default function InventoryTable() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="text-center font-bold">Reference</TableHead>
+              <TableHead 
+                className="text-center font-bold cursor-pointer hover:bg-gray-50 group"
+                onClick={() => handleSort('ref')}
+              >
+                <div className="flex items-center justify-center gap-2">
+                  REF
+                  <FontAwesomeIcon 
+                    icon={sortConfig.key === 'ref' 
+                      ? (sortConfig.direction === 'asc' ? faSortUp : faSortDown)
+                      : faSort
+                    } 
+                    className={sortConfig.key === 'ref' ? 'text-blue-500' : 'text-gray-400 group-hover:text-gray-600'}
+                  />
+                </div>
+              </TableHead>
               <TableHead className="text-center font-bold">Image</TableHead>
-              <TableHead className="text-center font-bold">Height</TableHead>
-              <TableHead className="text-center font-bold">Width</TableHead>
-              <TableHead className="text-center font-bold">Brand</TableHead>
-              <TableHead className="text-center font-bold">Campaign</TableHead>
-              <TableHead className="text-center font-bold">Date</TableHead>
-              <TableHead className="text-center font-bold">Stock</TableHead>
-              <TableHead className="text-center font-bold">Location</TableHead>
-              <TableHead className="text-center font-bold">Type</TableHead>
+              <TableHead 
+                className="text-center font-bold cursor-pointer hover:bg-gray-50 group"
+                onClick={() => handleSort('height')}
+              >
+                <div className="flex items-center justify-center gap-2">
+                  Altura
+                  <FontAwesomeIcon 
+                    icon={sortConfig.key === 'height' 
+                      ? (sortConfig.direction === 'asc' ? faSortUp : faSortDown)
+                      : faSort
+                    } 
+                    className={sortConfig.key === 'height' ? 'text-blue-500' : 'text-gray-400 group-hover:text-gray-600'}
+                  />
+                </div>
+              </TableHead>
+              <TableHead 
+                className="text-center font-bold cursor-pointer hover:bg-gray-50 group"
+                onClick={() => handleSort('width')}
+              >
+                <div className="flex items-center justify-center gap-2">
+                  Largura
+                  <FontAwesomeIcon 
+                    icon={sortConfig.key === 'width' 
+                      ? (sortConfig.direction === 'asc' ? faSortUp : faSortDown)
+                      : faSort
+                    } 
+                    className={sortConfig.key === 'width' ? 'text-blue-500' : 'text-gray-400 group-hover:text-gray-600'}
+                  />
+                </div>
+              </TableHead>
+              <TableHead 
+                className="text-center font-bold cursor-pointer hover:bg-gray-50 group"
+                onClick={() => handleSort('brand')}
+              >
+                <div className="flex items-center justify-center gap-2">
+                  Marca
+                  <FontAwesomeIcon 
+                    icon={sortConfig.key === 'brand' 
+                      ? (sortConfig.direction === 'asc' ? faSortUp : faSortDown)
+                      : faSort
+                    } 
+                    className={sortConfig.key === 'brand' ? 'text-blue-500' : 'text-gray-400 group-hover:text-gray-600'}
+                  />
+                </div>
+              </TableHead>
+              <TableHead 
+                className="text-center font-bold cursor-pointer hover:bg-gray-50 group"
+                onClick={() => handleSort('campaign')}
+              >
+                <div className="flex items-center justify-center gap-2">
+                  Campanha
+                  <FontAwesomeIcon 
+                    icon={sortConfig.key === 'campaign' 
+                      ? (sortConfig.direction === 'asc' ? faSortUp : faSortDown)
+                      : faSort
+                    } 
+                    className={sortConfig.key === 'campaign' ? 'text-blue-500' : 'text-gray-400 group-hover:text-gray-600'}
+                  />
+                </div>
+              </TableHead>
+              <TableHead 
+                className="text-center font-bold cursor-pointer hover:bg-gray-50 group"
+                onClick={() => handleSort('date')}
+              >
+                <div className="flex items-center justify-center gap-2">
+                  Data
+                  <FontAwesomeIcon 
+                    icon={sortConfig.key === 'date' 
+                      ? (sortConfig.direction === 'asc' ? faSortUp : faSortDown)
+                      : faSort
+                    } 
+                    className={sortConfig.key === 'date' ? 'text-blue-500' : 'text-gray-400 group-hover:text-gray-600'}
+                  />
+                </div>
+              </TableHead>
+              <TableHead 
+                className="text-center font-bold cursor-pointer hover:bg-gray-50 group"
+                onClick={() => handleSort('stock')}
+              >
+                <div className="flex items-center justify-center gap-2">
+                  Stock
+                  <FontAwesomeIcon 
+                    icon={sortConfig.key === 'stock' 
+                      ? (sortConfig.direction === 'asc' ? faSortUp : faSortDown)
+                      : faSort
+                    } 
+                    className={sortConfig.key === 'stock' ? 'text-blue-500' : 'text-gray-400 group-hover:text-gray-600'}
+                  />
+                </div>
+              </TableHead>
+              <TableHead 
+                className="text-center font-bold cursor-pointer hover:bg-gray-50 group"
+                onClick={() => handleSort('localidade')}
+              >
+                <div className="flex items-center justify-center gap-2">
+                  Localização
+                  <FontAwesomeIcon 
+                    icon={sortConfig.key === 'localidade' 
+                      ? (sortConfig.direction === 'asc' ? faSortUp : faSortDown)
+                      : faSort
+                    } 
+                    className={sortConfig.key === 'localidade' ? 'text-blue-500' : 'text-gray-400 group-hover:text-gray-600'}
+                  />
+                </div>
+              </TableHead>
+              <TableHead 
+                className="text-center font-bold cursor-pointer hover:bg-gray-50 group"
+                onClick={() => handleSort('tipologia')}
+              >
+                <div className="flex items-center justify-center gap-2">
+                  Tipo
+                  <FontAwesomeIcon 
+                    icon={sortConfig.key === 'tipologia' 
+                      ? (sortConfig.direction === 'asc' ? faSortUp : faSortDown)
+                      : faSort
+                    } 
+                    className={sortConfig.key === 'tipologia' ? 'text-blue-500' : 'text-gray-400 group-hover:text-gray-600'}
+                  />
+                </div>
+              </TableHead>
               <TableHead className="text-center font-bold">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filteredProducts.map((product) => (
+            {sortedAndFilteredProducts.map((product) => (
               <TableRow key={product.ref}>
                 <TableCell className="text-center">{product.ref}</TableCell>
                 <TableCell className="text-center">
@@ -380,93 +534,120 @@ export default function InventoryTable() {
         </Button>
       </div>
 
-      {/* Modals */}
-      <Modal isOpen={editModalOpen} onClose={handleCloseEditModal}>
-        {editingProduct && (
-          <EditProductForm product={editingProduct} onUpdate={handleUpdate} onCancel={handleCloseEditModal} />
-        )}
-      </Modal>
-
+      {/* Notes Modal */}
       <Modal isOpen={notesModalOpen} onClose={handleCloseNotesModal}>
-        <div className="p-6 max-w-md mx-auto bg-white rounded-lg shadow-lg">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-xl font-bold">Notes</h2>
+        <div className="divide-y divide-gray-100">
+          <div className="px-6 py-4 flex justify-between items-center bg-gray-50">
+            <h2 className="text-xl font-semibold text-gray-800">Notes</h2>
             {!editingNotes && (
               <Button 
                 onClick={() => setEditingNotes(true)}
-                className="bg-blue-500 hover:bg-blue-600 text-white p-2 rounded-full"
+                className="bg-blue-500 hover:bg-blue-600 text-white p-2 rounded-full transition-colors"
               >
                 <FontAwesomeIcon icon={faEdit} />
               </Button>
             )}
           </div>
-          {editingNotes ? (
-            <textarea
-              className="w-full p-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              value={notes || ''}
-              onChange={(e) => setNotes(e.target.value)}
-              rows={4}
-            />
-          ) : (
-            <p className="w-full p-4 border border-gray-300 rounded-lg">
-              {notes || 'No notes available for this product.'}
-            </p>
-          )}
-          <div className="mt-4 flex justify-end gap-2">
+          <div className="p-6 space-y-4">
             {editingNotes ? (
-              <>
-                <Button 
-                  onClick={handleUpdateNotes}
-                  className="bg-green-500 hover:bg-green-600 text-white"
-                >
-                  Save
-                </Button>
+              <textarea
+                className="w-full p-4 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                value={notes || ''}
+                onChange={(e) => setNotes(e.target.value)}
+                rows={4}
+                placeholder="Add your notes here..."
+              />
+            ) : (
+              <p className="w-full p-4 bg-gray-50 rounded-xl min-h-[100px] text-gray-700">
+                {notes || 'No notes available for this product.'}
+              </p>
+            )}
+            <div className="flex justify-end gap-2 pt-4">
+              {editingNotes ? (
+                <>
+                  <Button 
+                    onClick={handleUpdateNotes}
+                    className="bg-green-500 hover:bg-green-600 text-white transition-colors px-6"
+                  >
+                    Save
+                  </Button>
+                  <Button 
+                    onClick={handleCloseNotesModal}
+                    className="bg-gray-500 hover:bg-gray-600 text-white transition-colors px-6"
+                  >
+                    Cancel
+                  </Button>
+                </>
+              ) : (
                 <Button 
                   onClick={handleCloseNotesModal}
-                  className="bg-gray-500 hover:bg-gray-600 text-white"
+                  className="bg-gray-500 hover:bg-gray-600 text-white transition-colors px-6"
                 >
-                  Cancel
+                  Close
                 </Button>
-              </>
-            ) : (
-              <Button 
-                onClick={handleCloseNotesModal}
-                className="bg-gray-500 hover:bg-gray-600 text-white"
-              >
-                Close
-              </Button>
+              )}
+            </div>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Add Product Modal */}
+      <Modal isOpen={addProductModalOpen} onClose={() => setAddProductModalOpen(false)}>
+        <div className="divide-y divide-gray-100">
+          <div className="px-6 py-4 flex justify-between items-center bg-gray-50">
+            <h2 className="text-xl font-semibold text-gray-800">Add New Product</h2>
+            <Button 
+              onClick={() => setAddProductModalOpen(false)}
+              className="text-gray-500 hover:text-gray-700 transition-colors"
+            >
+              <FontAwesomeIcon icon={faTimes} className="text-xl" />
+            </Button>
+          </div>
+          <div className="p-6">
+            <InventoryForm />
+          </div>
+        </div>
+      </Modal>
+
+      {/* Edit Product Modal */}
+      <Modal isOpen={editModalOpen} onClose={handleCloseEditModal}>
+        <div className="divide-y divide-gray-100">
+          <div className="px-6 py-4 flex justify-between items-center bg-gray-50">
+            <h2 className="text-xl font-semibold text-gray-800">Edit Product</h2>
+            <Button 
+              onClick={handleCloseEditModal}
+              className="text-gray-500 hover:text-gray-700 transition-colors"
+            >
+              <FontAwesomeIcon icon={faTimes} className="text-xl" />
+            </Button>
+          </div>
+          <div className="p-6">
+            {editingProduct && (
+              <EditProductForm product={editingProduct} onUpdate={handleUpdate} onCancel={handleCloseEditModal} />
             )}
           </div>
         </div>
       </Modal>
 
-      <Modal isOpen={addProductModalOpen} onClose={() => setAddProductModalOpen(false)}>
-        <div className="p-6 bg-white rounded-lg max-w-4xl mx-auto">
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="text-2xl font-bold">Add New Product</h2>
-            <Button 
-              onClick={() => setAddProductModalOpen(false)}
-              className="text-gray-500 hover:text-gray-700"
-            >
-              <FontAwesomeIcon icon={faTimes} className="text-xl" />
-            </Button>
-          </div>
-          <InventoryForm />
-        </div>
-      </Modal>
-
-      <Modal isOpen={deletedProductsModalOpen} onClose={() => setDeletedProductsModalOpen(false)}>
-        <div className="p-6 bg-white rounded-lg max-w-7xl mx-auto">
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="text-2xl font-bold">Deleted Products</h2>
+      {/* Deleted Products Modal */}
+      <Modal 
+        isOpen={deletedProductsModalOpen} 
+        onClose={() => setDeletedProductsModalOpen(false)}
+        isWide={true}
+      >
+        <div className="divide-y divide-gray-100">
+          <div className="px-6 py-4 flex justify-between items-center bg-gray-50">
+            <h2 className="text-xl font-semibold text-gray-800">Deleted Products</h2>
             <Button 
               onClick={() => setDeletedProductsModalOpen(false)}
-              className="text-gray-500 hover:text-gray-700"
+              className="text-gray-500 hover:text-gray-700 transition-colors"
             >
               <FontAwesomeIcon icon={faTimes} className="text-xl" />
             </Button>
           </div>
-          <DeletedProducts />
+          <div className="p-6">
+            <DeletedProducts />
+          </div>
         </div>
       </Modal>
     </div>
