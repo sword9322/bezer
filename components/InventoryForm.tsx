@@ -5,7 +5,7 @@ import { useForm } from 'react-hook-form'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
-import { addProduct, fetchBrands } from '@/app/actions'
+import { addProduct, fetchBrands, fetchTipologias } from '@/app/actions'
 
 type FormData = {
   image: FileList
@@ -13,7 +13,6 @@ type FormData = {
   width: number
   brand: string
   campaign: string
-  date: string
   stock: number
   localidade: string
   tipologia: string
@@ -26,13 +25,18 @@ export default function InventoryForm() {
   const [customTipologia, setCustomTipologia] = useState('')
   const [customTipologiaInput, setCustomTipologiaInput] = useState('')
   const [brands, setBrands] = useState<string[]>([])
+  const [tipologias, setTipologias] = useState<string[]>([])
 
   useEffect(() => {
-    const loadBrands = async () => {
-      const fetchedBrands = await fetchBrands();
+    const loadData = async () => {
+      const [fetchedBrands, fetchedTipologias] = await Promise.all([
+        fetchBrands(),
+        fetchTipologias()
+      ]);
       setBrands(fetchedBrands);
+      setTipologias(fetchedTipologias);
     };
-    loadBrands();
+    loadData();
   }, []);
 
   const onSubmit = async (data: FormData) => {
@@ -44,10 +48,10 @@ export default function InventoryForm() {
       formData.append('width', data.width.toString())
       formData.append('brand', data.brand)
       formData.append('campaign', data.campaign)
-      formData.append('date', data.date)
+      formData.append('date', new Date().toISOString().split('T')[0])
       formData.append('stock', data.stock.toString())
       formData.append('localidade', data.localidade)
-      formData.append('tipologia', customTipologiaInput || data.tipologia)
+      formData.append('tipologia', data.tipologia === 'outro' ? customTipologiaInput : data.tipologia)
       formData.append('notes', data.notes)
 
       await addProduct(formData)
@@ -108,7 +112,7 @@ export default function InventoryForm() {
       </div>
 
       {/* Product Details */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="space-y-2">
           <Label htmlFor="brand" className="text-sm font-medium text-gray-700">Marca</Label>
           <select 
@@ -135,24 +139,12 @@ export default function InventoryForm() {
             ))}
           </select>
         </div>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="space-y-2">
           <Label htmlFor="campaign" className="text-sm font-medium text-gray-700">Campanha</Label>
           <Input 
             id="campaign" 
             type="text" 
             {...register('campaign', { required: true })} 
-            className="w-full rounded-lg border-gray-300 focus:border-blue-500 focus:ring-blue-500" 
-          />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="date" className="text-sm font-medium text-gray-700">Data</Label>
-          <Input 
-            id="date" 
-            type="date" 
-            {...register('date', { required: true })} 
             className="w-full rounded-lg border-gray-300 focus:border-blue-500 focus:ring-blue-500" 
           />
         </div>
@@ -176,20 +168,15 @@ export default function InventoryForm() {
           }}
         >
           <option value="">Selecione uma tipologia</option>
-          <option value="consola">Consola</option>
-          <option value="coluna">Coluna</option>
-          <option value="parede pódio">Parede Pódio</option>
-          <option value="parede mini-pódio">Parede Mini-Pódio</option>
-          <option value="canoppy">Canoppy</option>
-          <option value="estrutura">Estrutura</option>
-          <option value="cadeira">Cadeira</option>
-          <option value="banco">Banco</option>
+          {tipologias.map((tipologia) => (
+            <option key={tipologia} value={tipologia}>{tipologia}</option>
+          ))}
           <option value="outro">Outro (com descrição)</option>
         </select>
         {customTipologia === 'outro' && (
           <Input
             type="text"
-            placeholder="Digite sua descrição"
+            placeholder="Coloque a tipologia aqui"
             value={customTipologiaInput}
             onChange={(e) => setCustomTipologiaInput(e.target.value)}
             className="mt-2 w-full rounded-lg border-gray-300 focus:border-blue-500 focus:ring-blue-500"

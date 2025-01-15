@@ -5,39 +5,102 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { fetchBrands, addBrand, removeBrand } from '@/app/actions';
+import { fetchBrands, addBrand, deleteBrand, fetchTipologias, addTipologia, deleteTipologia, downloadBrands, downloadTipologias } from '@/app/actions';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faTrash, faBoxes, faUsers, faDatabase, faCloud, faHome } from '@fortawesome/free-solid-svg-icons';
+import { faBoxes, faUsers, faDatabase, faCloud, faHome, faList, faDownload } from '@fortawesome/free-solid-svg-icons';
 import Link from 'next/link';
+import { Label } from "@/components/ui/label";
 
 export default function SettingsPage() {
   const [brands, setBrands] = useState<string[]>([]);
   const [newBrand, setNewBrand] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [tipologias, setTipologias] = useState<string[]>([]);
+  const [newTipologia, setNewTipologia] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     loadBrands();
+    loadTipologias();
   }, []);
 
   const loadBrands = async () => {
-    const loadedBrands = await fetchBrands();
-    setBrands(loadedBrands);
+    const fetchedBrands = await fetchBrands();
+    setBrands(fetchedBrands);
   };
 
-  const handleAddBrand = async () => {
+  const loadTipologias = async () => {
+    const fetchedTipologias = await fetchTipologias();
+    setTipologias(fetchedTipologias);
+  };
+
+  const handleAddBrand = async (e: React.FormEvent) => {
+    e.preventDefault();
     if (!newBrand.trim()) return;
-    setLoading(true);
-    await addBrand(newBrand);
-    await loadBrands();
-    setNewBrand('');
-    setLoading(false);
+
+    setIsLoading(true);
+    try {
+      await addBrand(newBrand);
+      setNewBrand('');
+      await loadBrands();
+    } catch (error) {
+      console.error('Error adding brand:', error);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const handleRemoveBrand = async (brand: string) => {
-    if (window.confirm('Tem certeza que deseja remover esta marca?')) {
-      await removeBrand(brand);
-      setBrands(prev => prev.filter(b => b !== brand));
+  const handleAddTipologia = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newTipologia.trim()) return;
+
+    setIsLoading(true);
+    try {
+      await addTipologia(newTipologia);
+      setNewTipologia('');
+      await loadTipologias();
+    } catch (error) {
+      console.error('Error adding tipologia:', error);
+    } finally {
+      setIsLoading(false);
     }
+  };
+
+  const handleDeleteBrand = async (brand: string) => {
+    if (!confirm(`Are you sure you want to delete ${brand}?`)) return;
+
+    setIsLoading(true);
+    try {
+      await deleteBrand(brand);
+      await loadBrands();
+    } catch (error) {
+      console.error('Error deleting brand:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleDeleteTipologia = async (tipologia: string) => {
+    if (!confirm(`Are you sure you want to delete ${tipologia}?`)) return;
+
+    setIsLoading(true);
+    try {
+      await deleteTipologia(tipologia);
+      await loadTipologias();
+    } catch (error) {
+      console.error('Error deleting tipologia:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleDownloadBrands = async () => {
+    const url = await downloadBrands();
+    window.open(url, '_blank');
+  };
+
+  const handleDownloadTipologias = async () => {
+    const url = await downloadTipologias();
+    window.open(url, '_blank');
   };
 
   return (
@@ -52,10 +115,14 @@ export default function SettingsPage() {
       </div>
       
       <Tabs defaultValue="brands" className="space-y-6">
-        <TabsList className="grid grid-cols-4 gap-4 bg-gray-100 p-2 rounded-lg">
+        <TabsList className="grid grid-cols-5 gap-4 bg-gray-100 p-2 rounded-lg">
           <TabsTrigger value="brands" className="flex items-center gap-2">
             <FontAwesomeIcon icon={faBoxes} />
             Marcas
+          </TabsTrigger>
+          <TabsTrigger value="tipologias" className="flex items-center gap-2">
+            <FontAwesomeIcon icon={faList} />
+            Tipologias
           </TabsTrigger>
           <TabsTrigger value="users" className="flex items-center gap-2">
             <FontAwesomeIcon icon={faUsers} />
@@ -73,46 +140,113 @@ export default function SettingsPage() {
 
         <TabsContent value="brands">
           <Card>
-            <CardHeader>
-              <CardTitle>Marcas
-              </CardTitle>
-              <CardDescription>
-                Adiciona ou remove marcas.
-              </CardDescription>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <div>
+                <CardTitle>Gestão de Marcas</CardTitle>
+                <CardDescription>
+                  Adicione ou remova marcas do sistema.
+                </CardDescription>
+              </div>
+              <Button 
+                onClick={handleDownloadBrands}
+                variant="outline"
+                className="flex items-center gap-2"
+              >
+                <FontAwesomeIcon icon={faDownload} />
+                Exportar Marcas
+              </Button>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                <div className="flex gap-4">
+              <form onSubmit={handleAddBrand} className="flex gap-4 mb-6">
+                <div className="flex-1">
+                  <Label htmlFor="brand">Nova Marca</Label>
                   <Input
-                    type="text"
-                    placeholder="Adicionar nova marca..."
+                    id="brand"
                     value={newBrand}
                     onChange={(e) => setNewBrand(e.target.value)}
-                    className="max-w-sm"
+                    placeholder="Digite o nome da marca"
+                    className="mt-1"
                   />
-                  <Button 
-                    onClick={handleAddBrand} 
-                    disabled={loading}
-                    className="bg-blue-500 hover:bg-blue-600"
+                </div>
+                <Button type="submit" className="mt-7" disabled={isLoading}>
+                  Adicionar
+                </Button>
+              </form>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {brands.map((brand) => (
+                  <div
+                    key={brand}
+                    className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
                   >
-                    Adicionar Marca
-                  </Button>
+                    <span>{brand}</span>
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => handleDeleteBrand(brand)}
+                      disabled={isLoading}
+                    >
+                      Remover
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="tipologias">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <div>
+                <CardTitle>Gestão de Tipologias</CardTitle>
+                <CardDescription>
+                  Adicione ou remova tipologias do sistema.
+                </CardDescription>
+              </div>
+              <Button 
+                onClick={handleDownloadTipologias}
+                variant="outline"
+                className="flex items-center gap-2"
+              >
+                <FontAwesomeIcon icon={faDownload} />
+                Exportar Tipologias
+              </Button>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handleAddTipologia} className="flex gap-4 mb-6">
+                <div className="flex-1">
+                  <Label htmlFor="tipologia">Nova Tipologia</Label>
+                  <Input
+                    id="tipologia"
+                    value={newTipologia}
+                    onChange={(e) => setNewTipologia(e.target.value)}
+                    placeholder="Digite o nome da tipologia"
+                    className="mt-1"
+                  />
                 </div>
-                
-                <div className="grid grid-cols-3 gap-4 mt-6">
-                  {brands.map((brand) => (
-                    <Card key={brand} className="p-4 flex justify-between items-center">
-                      <span>{brand}</span>
-                      <Button 
-                        variant="ghost" 
-                        className="text-red-500 hover:text-red-600"
-                        onClick={() => handleRemoveBrand(brand)}
-                      >
-                        <FontAwesomeIcon icon={faTrash} />
-                      </Button>
-                    </Card>
-                  ))}
-                </div>
+                <Button type="submit" className="mt-7" disabled={isLoading}>
+                  Adicionar
+                </Button>
+              </form>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {tipologias.map((tipologia) => (
+                  <div
+                    key={tipologia}
+                    className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
+                  >
+                    <span>{tipologia}</span>
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => handleDeleteTipologia(tipologia)}
+                      disabled={isLoading}
+                    >
+                      Remover
+                    </Button>
+                  </div>
+                ))}
               </div>
             </CardContent>
           </Card>

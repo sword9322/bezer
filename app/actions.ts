@@ -36,6 +36,7 @@ google.drive({ version: 'v3', auth }); // Initialize Google Drive API
 const SPREADSHEET_ID = '1F0FmaEcFZhvlaQ3D4i22TJj_Q5ST4wJ6SqUcmds90no';
 const RANGE = 'Inventario!A:K'
 const BRANDS_RANGE = 'Brands!A:A'; // Range for brands
+const TIPOLOGIAS_RANGE = 'Tipologias!A:A';
 
 const COLUMN_TITLES = ['Referência', 'Imagem', 'Altura', 'Largura', 'Marca', 'Campanha', 'Data', 'Estoque', 'Localidade', 'Tipologia', 'Notas']
 
@@ -388,7 +389,7 @@ export const addBrand = async (brand: string) => {
   });
 };
 
-export const removeBrand = async (brand: string) => {
+export const deleteBrand = async (brand: string) => {
   try {
     // Get the spreadsheet metadata to find the correct sheet ID
     const spreadsheet = await sheets.spreadsheets.get({
@@ -551,6 +552,114 @@ export const restoreProduct = async (ref: string) => {
     console.error('Erro ao restaurar produto:', error);
     return { success: false, error: 'Erro ao restaurar produto' };
   }
+};
+
+export const fetchTipologias = async () => {
+  try {
+    const response = await sheets.spreadsheets.values.get({
+      spreadsheetId: SPREADSHEET_ID,
+      range: TIPOLOGIAS_RANGE,
+    });
+    return response.data.values?.flat() || [];
+  } catch (error) {
+    console.error('Error fetching tipologias:', error);
+    return [];
+  }
+};
+
+export const addTipologia = async (tipologia: string) => {
+  await sheets.spreadsheets.values.append({
+    spreadsheetId: SPREADSHEET_ID,
+    range: TIPOLOGIAS_RANGE,
+    valueInputOption: 'USER_ENTERED',
+    requestBody: {
+      values: [[tipologia]],
+    },
+  });
+};
+
+export const deleteTipologia = async (tipologia: string) => {
+  try {
+    const spreadsheet = await sheets.spreadsheets.get({
+      spreadsheetId: SPREADSHEET_ID,
+    });
+
+    const tipologiasSheet = spreadsheet.data.sheets?.find(
+      sheet => sheet.properties?.title === 'Tipologias'
+    );
+
+    if (!tipologiasSheet?.properties?.sheetId) {
+      throw new Error('Tipologias sheet not found');
+    }
+
+    const response = await sheets.spreadsheets.values.get({
+      spreadsheetId: SPREADSHEET_ID,
+      range: TIPOLOGIAS_RANGE,
+    });
+
+    const rows = response.data.values;
+    if (!rows) throw new Error('No data found.');
+
+    const rowIndex = rows.findIndex(row => row[0] === tipologia);
+    if (rowIndex === -1) throw new Error('Tipologia not found.');
+
+    await sheets.spreadsheets.batchUpdate({
+      spreadsheetId: SPREADSHEET_ID,
+      requestBody: {
+        requests: [{
+          deleteDimension: {
+            range: {
+              sheetId: tipologiasSheet.properties.sheetId,
+              dimension: 'ROWS',
+              startIndex: rowIndex,
+              endIndex: rowIndex + 1
+            }
+          }
+        }]
+      }
+    });
+
+    return { success: true };
+  } catch (error) {
+    console.error('Error removing tipologia:', error);
+    return { success: false, error: 'Failed to remove tipologia' };
+  }
+};
+
+export const downloadBrands = async () => {
+  // Get the spreadsheet to find the Brands sheet ID
+  const spreadsheet = await sheets.spreadsheets.get({
+    spreadsheetId: SPREADSHEET_ID,
+  });
+
+  const brandsSheet = spreadsheet.data.sheets?.find(
+    sheet => sheet.properties?.title === 'Brands'
+  );
+
+  if (!brandsSheet?.properties?.sheetId) {
+    throw new Error('Brands sheet not found');
+  }
+
+  const url = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/export?format=xlsx&gid=${brandsSheet.properties.sheetId}&exportFileName=Marcas`;
+  return url;
+};
+
+export const downloadTipologias = async () => {
+  // Get the spreadsheet to find the Tipologias sheet ID
+  const spreadsheet = await sheets.spreadsheets.get({
+    spreadsheetId: SPREADSHEET_ID,
+  });
+
+  const tipologiasSheet = spreadsheet.data.sheets?.find(
+    sheet => sheet.properties?.title === 'Tipologias'
+  );
+
+  if (!tipologiasSheet?.properties?.sheetId) {
+    throw new Error('Tipologias sheet not found');
+  }
+
+  const url = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/export?format=xlsx&gid=${tipologiasSheet.properties.sheetId}&exportFileName=Tipologias`;
+  return url;
 };
 
 
