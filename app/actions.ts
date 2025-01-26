@@ -40,15 +40,14 @@ const TIPOLOGIAS_RANGE = 'Tipologias!A:A';
 
 const COLUMN_TITLES = ['Referência', 'Imagem', 'Altura', 'Largura', 'Marca', 'Campanha', 'Data', 'Estoque', 'Localidade', 'Tipologia', 'Notas']
 
-async function addProduct(formData: FormData) {
-  
+async function addProduct(formData: FormData, warehouse: string) {
   try {
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId: SPREADSHEET_ID,
       range: 'Inventario!A1:K1',
-    })
+    });
 
-    const existingTitles = response.data.values && response.data.values[0]
+    const existingTitles = response.data.values && response.data.values[0];
 
     if (!existingTitles || existingTitles.length === 0) {
       await sheets.spreadsheets.values.append({
@@ -58,26 +57,27 @@ async function addProduct(formData: FormData) {
         requestBody: {
           values: [COLUMN_TITLES],
         },
-      })
+      });
     }
 
     const image = formData.get('image') as File;
     console.log('Image object:', image);
-    const imageLink = await uploadImageToDrive(image)
-    const height = formData.get('height')
-    const width = formData.get('width')
-    const brand = formData.get('brand')
-    const campaign = formData.get('campaign')
-    const date = formData.get('date')
-    const stock = formData.get('stock')
-    const localidade = formData.get('localidade')
-    const tipologia = formData.get('tipologia')
-    const notes = formData.get('notes')
+    const imageLink = await uploadImageToDrive(image);
+    const height = formData.get('height');
+    const width = formData.get('width');
+    const brand = formData.get('brand');
+    const campaign = formData.get('campaign');
+    const date = formData.get('date');
+    const stock = formData.get('stock');
+    const localidade = formData.get('localidade');
+    const tipologia = formData.get('tipologia');
+    const notes = formData.get('notes');
     const ref = `REF-${Math.floor(Math.random() * 10000)}`;
+    const warehouseNumber = warehouse === 'Warehouse 1' ? '1' : '2';
 
     const values = [
-      [ref, imageLink, height, width, brand, campaign, date, stock, localidade, tipologia, notes]
-    ]
+      [ref, imageLink, height, width, brand, campaign, date, stock, localidade, tipologia, notes, warehouseNumber]
+    ];
 
     await sheets.spreadsheets.values.append({
       spreadsheetId: SPREADSHEET_ID,
@@ -86,38 +86,41 @@ async function addProduct(formData: FormData) {
       requestBody: {
         values,
       },
-    })
+    });
 
-    return { success: true }
+    return { success: true };
   } catch (error) {
-    console.error('Erro ao adicionar produto:', error)
-    return { success: false, error: 'Erro ao adicionar produto' }
+    console.error('Erro ao adicionar produto:', error);
+    return { success: false, error: 'Erro ao adicionar produto' };
   }
 }
 
-async function getProducts(page: number, pageSize: number = 10) {
+async function getProducts(page: number, warehouse: string, pageSize: number = 10) {
   try {
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId: SPREADSHEET_ID,
-      range: 'Inventario!A2:K',
+      range: 'Inventario!A2:L', // Adjusted range to include Warehouse column
     });
 
     const rows = response.data.values;
     if (!rows) throw new Error('No data found.');
 
-    const products = rows.map(row => ({
-      ref: row[0],
-      image: row[1],
-      height: Number(row[2]),
-      width: Number(row[3]),
-      brand: row[4],
-      campaign: row[5],
-      date: row[6],
-      stock: Number(row[7]),
-      localidade: row[8],
-      tipologia: row[9],
-      notes: row[10] || ''
-    }));
+    const warehouseNumber = warehouse === 'Warehouse 1' ? '1' : '2';
+    const products = rows
+      .filter(row => row[11] === warehouseNumber) // Filter by warehouse number
+      .map(row => ({
+        ref: row[0],
+        image: row[1],
+        height: Number(row[2]),
+        width: Number(row[3]),
+        brand: row[4],
+        campaign: row[5],
+        date: row[6],
+        stock: Number(row[7]),
+        localidade: row[8],
+        tipologia: row[9],
+        notes: row[10] || ''
+      }));
 
     return { products, totalPages: Math.ceil(products.length / pageSize) };
   } catch (error) {
@@ -661,6 +664,11 @@ export const downloadTipologias = async () => {
   const url = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/export?format=xlsx&gid=${tipologiasSheet.properties.sheetId}&exportFileName=Tipologias`;
   return url;
 };
+
+export async function downloadPDF() {
+  const url = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/export?format=pdf&size=A4&portrait=true&fitw=true&gridlines=false`;
+  return url;
+}
 
 
 

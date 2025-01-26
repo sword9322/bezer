@@ -3,11 +3,11 @@
 import { useState, useEffect, useCallback } from 'react'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Button } from '@/components/ui/button'
-import { getProducts, deleteProduct, updateProduct, downloadSheet } from '@/app/actions'
+import { getProducts, deleteProduct, updateProduct, downloadSheet, downloadPDF } from '@/app/actions'
 import EditProductForm from '@/components/EditProductForm'
 import Modal from '@/components/modals'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faDownload, faEdit, faImage, faBoxes, faBoxOpen, faPlus, faTrashRestore, faFilter, faChevronLeft, faChevronRight, faTimes, faCog } from '@fortawesome/free-solid-svg-icons';
+import { faEdit, faImage, faBoxes, faBoxOpen, faPlus, faTrashRestore, faFilter, faChevronLeft, faChevronRight, faTimes, faCog, faSyncAlt, faColumns, faFilePdf, faFileExcel } from '@fortawesome/free-solid-svg-icons';
 import Image from 'next/image';
 import GoogleDriveIcon from '@/components/icons/google-drive.png';
 import GoogleSheetsIcon from '@/components/icons/sheets.png';
@@ -15,6 +15,8 @@ import InventoryForm from '@/components/InventoryForm';
 import DeletedProducts from '@/components/DeletedProducts';
 import Link from 'next/link';
 import { Pencil1Icon, TrashIcon, EyeOpenIcon } from '@radix-ui/react-icons';
+import { Select } from '@/components/ui/select';
+import { Input } from '@/components/ui/input';
 
 
 
@@ -44,6 +46,8 @@ export default function InventoryTable() {
   const [editingNotes, setEditingNotes] = useState(false);
   const [addProductModalOpen, setAddProductModalOpen] = useState(false);
   const [deletedProductsModalOpen, setDeletedProductsModalOpen] = useState(false);
+  const [selectedWarehouse, setSelectedWarehouse] = useState('Warehouse 1');
+  const [showColumnSelector, setShowColumnSelector] = useState(false);
 
   const [filters, setFilters] = useState({
     ref: '',
@@ -56,15 +60,58 @@ export default function InventoryTable() {
     notes: '',
   });
 
+  const [visibleColumns, setVisibleColumns] = useState({
+    ref: true,
+    image: true,
+    height: true,
+    width: true,
+    brand: true,
+    campaign: true,
+    date: true,
+    stock: true,
+    localidade: true,
+    tipologia: true,
+    actions: true,
+  });
+
+  const toggleColumnVisibility = (column: keyof typeof visibleColumns) => {
+    setVisibleColumns(prev => ({
+      ...prev,
+      [column]: !prev[column],
+    }));
+  };
+
+  const selectAllColumns = () => {
+    setVisibleColumns(Object.keys(visibleColumns).reduce((acc, column) => {
+      acc[column as keyof typeof visibleColumns] = true;
+      return acc;
+    }, {} as typeof visibleColumns));
+  };
+
+  const deselectAllColumns = () => {
+    setVisibleColumns(Object.keys(visibleColumns).reduce((acc, column) => {
+      acc[column as keyof typeof visibleColumns] = false;
+      return acc;
+    }, {} as typeof visibleColumns));
+  };
+
   const fetchProducts = useCallback(async () => {
-    const result = await getProducts(currentPage);
-    const productsWithNotes = result.products.map((product) => ({
+    let combinedProducts = [];
+    if (selectedWarehouse === 'Both') {
+      const result1 = await getProducts(currentPage, 'Warehouse 1');
+      const result2 = await getProducts(currentPage, 'Warehouse 2');
+      combinedProducts = [...result1.products, ...result2.products];
+    } else {
+      const result = await getProducts(currentPage, selectedWarehouse);
+      combinedProducts = result.products;
+    }
+    const productsWithNotes = combinedProducts.map((product) => ({
       ...product,
       notes: product.notes || '',
     }));
     setProducts(productsWithNotes);
-    setTotalPages(result.totalPages);
-  }, [currentPage]);
+    setTotalPages(Math.ceil(productsWithNotes.length / 10));
+  }, [currentPage, selectedWarehouse]);
 
   useEffect(() => {
     fetchProducts();
@@ -134,6 +181,11 @@ export default function InventoryTable() {
     window.open(url, '_blank');
   };
 
+  const handleDownloadPDF = async () => {
+    const url = await downloadPDF();
+    window.open(url, '_blank');
+  };
+
   const openGoogleSheet = () => {
     window.open(`https://docs.google.com/spreadsheets/d/1F0FmaEcFZhvlaQ3D4i22TJj_Q5ST4wJ6SqUcmds90no`, '_blank')
   }
@@ -166,186 +218,284 @@ export default function InventoryTable() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800">
-      <div className="container mx-auto px-4 py-8 max-w-7xl">
-        {/* Statistics Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 dark:from-slate-900 dark:to-slate-800 relative">
+      {/* Abstract background pattern */}
+      <div className="absolute inset-0 bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] [background-size:16px_16px] opacity-50"></div>
+
+      {/* Main Header */}
+      <header className="relative z-10 bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm border-b border-slate-200 dark:border-slate-800">
+        <div className="container mx-auto px-4 py-4">
+          <h1 className="text-4xl font-bold text-center bg-gradient-to-r from-blue-600 to-blue-800 dark:from-blue-400 dark:to-blue-600 bg-clip-text text-transparent font-display">
+            BEZE
+          </h1>
+        </div>
+      </header>
+
+      <div className="container mx-auto px-4 py-8 max-w-7xl relative z-10">
+        {/* Breadcrumb */}
+        <nav className="mb-8">
+          <ol className="flex items-center space-x-2 text-sm text-slate-600 dark:text-slate-400">
+            <li><Link href="/" className="hover:text-blue-600 dark:hover:text-blue-400">Home</Link></li>
+            <li><span className="px-2">/</span></li>
+            <li className="font-medium text-slate-900 dark:text-white">Gestão de Inventário</li>
+          </ol>
+        </nav>
+
+        {/* App Header with Icon and Description */}
+        <div className="bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm rounded-2xl shadow-lg border border-slate-200/50 dark:border-slate-700/50 p-6 mb-8">
+          <div className="flex items-center gap-4">
+            <div className="p-3 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl shadow-lg">
+              <FontAwesomeIcon icon={faBoxes} className="text-2xl text-white" />
+            </div>
+            <div>
+              <h2 className="text-xl font-semibold text-slate-900 dark:text-white">
+                Gestão de Inventário
+              </h2>
+              <p className="text-sm text-slate-500 dark:text-slate-400">
+                Gerencie seu inventário de forma eficiente e profissional
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Stats Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
           {/* Products Card */}
-          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg overflow-hidden border border-gray-100 dark:border-gray-700 hover:shadow-xl transition-all duration-300">
-            <div className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Produtos</p>
-                  <h3 className="text-3xl font-bold text-gray-900 dark:text-white mt-2">{products.length}</h3>
-                </div>
-                <div className="p-4 bg-blue-500 bg-opacity-10 rounded-2xl">
-                  <FontAwesomeIcon icon={faBoxes} className="text-2xl text-blue-500" />
-                </div>
+          <div className="group bg-gradient-to-br from-blue-500/10 to-blue-600/10 dark:from-blue-500/5 dark:to-blue-600/5 backdrop-blur-sm rounded-2xl shadow-lg border border-blue-200/50 dark:border-blue-500/10 p-6 transition-all duration-300 hover:scale-[1.02] hover:shadow-xl">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <p className="text-sm font-medium text-blue-600/80 dark:text-blue-400">Produtos</p>
+                <h3 className="text-3xl font-bold text-slate-900 dark:text-white mt-1">
+                  {products.length}
+                </h3>
               </div>
-              <div className="mt-4">
-                <div className="h-2 w-full bg-gray-100 dark:bg-gray-700 rounded-full">
-                  <div className="h-2 bg-blue-500 rounded-full" style={{ width: '70%' }}></div>
-                </div>
+              <div className="p-3 bg-blue-500/20 rounded-xl group-hover:bg-blue-500/30 transition-colors">
+                <FontAwesomeIcon icon={faBoxes} className="text-xl text-blue-600 dark:text-blue-400" />
               </div>
+            </div>
+            <div className="h-2 bg-blue-500/20 rounded-full overflow-hidden">
+              <div 
+                className="h-full bg-gradient-to-r from-blue-500 to-blue-600 rounded-full transition-all duration-500 group-hover:from-blue-600 group-hover:to-blue-700" 
+                style={{ width: '70%' }}
+              />
             </div>
           </div>
 
           {/* Stock Card */}
-          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg overflow-hidden border border-gray-100 dark:border-gray-700 hover:shadow-xl transition-all duration-300">
-            <div className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Stock Total</p>
-                  <h3 className="text-3xl font-bold text-gray-900 dark:text-white mt-2">
-                    {products.reduce((total, product) => total + product.stock, 0)}
-                  </h3>
-                </div>
-                <div className="p-4 bg-green-500 bg-opacity-10 rounded-2xl">
-                  <FontAwesomeIcon icon={faBoxOpen} className="text-2xl text-green-500" />
-                </div>
+          <div className="group bg-gradient-to-br from-green-500/10 to-green-600/10 dark:from-green-500/5 dark:to-green-600/5 backdrop-blur-sm rounded-2xl shadow-lg border border-green-200/50 dark:border-green-500/10 p-6 transition-all duration-300 hover:scale-[1.02] hover:shadow-xl">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <p className="text-sm font-medium text-green-600/80 dark:text-green-400">Stock Total</p>
+                <h3 className="text-3xl font-bold text-slate-900 dark:text-white mt-1">
+                  {products.reduce((total, product) => total + product.stock, 0)}
+                </h3>
               </div>
-              <div className="mt-4">
-                <div className="h-2 w-full bg-gray-100 dark:bg-gray-700 rounded-full">
-                  <div className="h-2 bg-green-500 rounded-full" style={{ width: '85%' }}></div>
-                </div>
+              <div className="p-3 bg-green-500/20 rounded-xl group-hover:bg-green-500/30 transition-colors">
+                <FontAwesomeIcon icon={faBoxOpen} className="text-xl text-green-600 dark:text-green-400" />
               </div>
+            </div>
+            <div className="h-2 bg-green-500/20 rounded-full overflow-hidden">
+              <div 
+                className="h-full bg-gradient-to-r from-green-500 to-green-600 rounded-full transition-all duration-500 group-hover:from-green-600 group-hover:to-green-700" 
+                style={{ width: '85%' }}
+              />
             </div>
           </div>
 
-          {/* Action Buttons Card */}
-          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg overflow-hidden border border-gray-100 dark:border-gray-700">
-            <div className="p-6 space-y-4">
+          {/* Action Buttons */}
+          <div className="space-y-3">
+            <Button 
+              onClick={() => setAddProductModalOpen(true)}
+              className="w-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-xl py-3.5 font-medium shadow-lg hover:shadow-blue-500/25 transition-all duration-300 transform hover:translate-y-[-2px]"
+            >
+              <FontAwesomeIcon icon={faPlus} className="mr-2" />
+              Adicionar Produto
+            </Button>
+
+            <Button 
+              onClick={() => setDeletedProductsModalOpen(true)}
+              className="w-full bg-white hover:bg-slate-50 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-xl py-3.5 font-medium shadow-sm border border-slate-200 dark:border-slate-700 transition-all duration-300 transform hover:translate-y-[-2px]"
+            >
+              <FontAwesomeIcon icon={faTrashRestore} className="mr-2 text-slate-500" />
+              Produtos Eliminados
+            </Button>
+
+            <Link href="/settings" className="block">
               <Button 
-                onClick={() => setAddProductModalOpen(true)}
-                className="w-full bg-blue-600 hover:bg-blue-700 text-white rounded-xl py-3 font-medium shadow-lg hover:shadow-blue-500/30 transition-all duration-300"
+                className="w-full bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white rounded-xl py-3.5 font-medium shadow-lg hover:shadow-purple-500/25 transition-all duration-300 transform hover:translate-y-[-2px]"
               >
-                <FontAwesomeIcon icon={faPlus} className="mr-2" />
-                Adicionar Produto
+                <FontAwesomeIcon icon={faCog} className="mr-2" />
+                Definições
               </Button>
-              
-              <Button 
-                onClick={() => setDeletedProductsModalOpen(true)}
-                className="w-full bg-gray-600 hover:bg-gray-700 text-white rounded-xl py-3 font-medium shadow-lg hover:shadow-gray-500/30 transition-all duration-300"
-              >
-                <FontAwesomeIcon icon={faTrashRestore} className="mr-2" />
-                Produtos Eliminados
-              </Button>
-              
-              <Link href="/settings" className="w-full block">
-                <Button 
-                  className="w-full bg-purple-600 hover:bg-purple-700 text-white rounded-xl py-3 font-medium shadow-lg hover:shadow-purple-500/30 transition-all duration-300"
-                >
-                  <FontAwesomeIcon icon={faCog} className="mr-2" />
-                  Definições
-                </Button>
-              </Link>
-            </div>
+            </Link>
           </div>
         </div>
 
-        {/* Table Controls */}
+        {/* Table Controls with improved styling */}
         <div className="flex flex-col md:flex-row justify-between items-center gap-4 mb-6">
-          <Button 
-            onClick={() => setShowFilters(prev => !prev)}
-            className="w-full md:w-auto flex items-center justify-center gap-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-xl px-4 py-2.5 transition-all duration-300"
-          >
-            <FontAwesomeIcon icon={faFilter} className={`transition-transform duration-300 ${showFilters ? 'rotate-180' : ''}`} />
-            {showFilters ? 'Ocultar Filtros' : 'Mostrar Filtros'}
-          </Button>
-          
-          <div className="flex items-center gap-3">
-            <div className="flex gap-2">
-              <Button 
-                onClick={openGoogleSheet} 
-                className="flex items-center gap-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-xl p-2.5 transition-all duration-300"
-              >
-                <Image src={GoogleSheetsIcon} alt="Google Sheets" width={24} height={24} className="rounded" />
-              </Button>
-              <Button 
-                onClick={openGoogleDrive} 
-                className="flex items-center gap-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-xl p-2.5 transition-all duration-300"
-              >
-                <Image src={GoogleDriveIcon} alt="Google Drive" width={24} height={24} className="rounded" />
-              </Button>
-            </div>
-            <Button 
-              onClick={handleDownload} 
-              className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white rounded-xl px-4 py-2.5 shadow-lg hover:shadow-green-500/30 transition-all duration-300"
+          <div className="flex items-center gap-4 w-full md:w-auto">
+            <Select
+              value={selectedWarehouse}
+              onChange={(e) => setSelectedWarehouse(e.target.value)}
+              className="bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 shadow-sm transition-all duration-200 hover:border-blue-500 focus:border-blue-500"
             >
-              <FontAwesomeIcon icon={faDownload} />
-              <span className="hidden md:inline">Exportar</span>
+              <option value="Warehouse 1">Armazem 1</option>
+              <option value="Warehouse 2">Armazem 2</option>
+              <option value="Both">Ambos</option>
+            </Select>
+
+            <Button
+              onClick={fetchProducts}
+              className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-xl px-4 py-2.5 shadow-lg hover:shadow-blue-500/25 transition-all duration-300"
+            >
+              <FontAwesomeIcon icon={faSyncAlt} className="mr-2" />
+              Refresh
+            </Button>
+
+            <Button
+              onClick={() => setShowColumnSelector(true)}
+              className="bg-white hover:bg-slate-50 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-xl px-4 py-2.5 shadow-sm border border-slate-200 dark:border-slate-700 transition-all duration-300"
+            >
+              <FontAwesomeIcon icon={faColumns} className="mr-2" />
+              Colunas
+            </Button>
+
+            <Button
+              onClick={() => setShowFilters(!showFilters)}
+              className="bg-white hover:bg-slate-50 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-xl px-4 py-2.5 shadow-sm border border-slate-200 dark:border-slate-700 transition-all duration-300"
+            >
+              <FontAwesomeIcon icon={faFilter} className="mr-2" />
+              Filtros
+            </Button>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <Button onClick={openGoogleSheet} className="p-2.5 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm hover:bg-slate-50 dark:hover:bg-slate-700 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 transition-all duration-300">
+              <Image src={GoogleSheetsIcon} alt="Google Sheets" width={24} height={24} className="rounded" />
+            </Button>
+            <Button onClick={openGoogleDrive} className="p-2.5 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm hover:bg-slate-50 dark:hover:bg-slate-700 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 transition-all duration-300">
+              <Image src={GoogleDriveIcon} alt="Google Drive" width={24} height={24} className="rounded" />
+            </Button>
+            <Button onClick={handleDownload} className="bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white rounded-xl px-4 py-2.5 shadow-lg hover:shadow-green-500/25 transition-all duration-300">
+              <FontAwesomeIcon icon={faFileExcel} className="mr-2" />
+              Excel
+            </Button>
+            <Button onClick={handleDownloadPDF} className="bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white rounded-xl px-4 py-2.5 shadow-lg hover:shadow-red-500/25 transition-all duration-300">
+              <FontAwesomeIcon icon={faFilePdf} className="mr-2" />
+              PDF
             </Button>
           </div>
         </div>
 
-        {/* Filters */}
+        {/* Filters Section */}
         {showFilters && (
-          <div className="mb-6">
-            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
-              {[
-                { name: 'ref', placeholder: 'Ref' },
-                { name: 'brand', placeholder: 'Marca' },
-                { name: 'campaign', placeholder: 'Campanha' },
-                { name: 'date', placeholder: 'Data' },
-                { name: 'stock', placeholder: 'Stock' },
-                { name: 'localidade', placeholder: 'Localização' },
-                { name: 'tipologia', placeholder: 'Tipo' }
-              ].map((filter) => (
-                <input
-                  key={filter.name}
-                  name={filter.name}
-                  placeholder={filter.placeholder}
-                  value={filters[filter.name as keyof typeof filters]}
-                  onChange={handleFilterChange}
-                  className="w-full px-4 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300"
-                />
-              ))}
+          <div className="bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm rounded-2xl shadow-lg border border-slate-200/50 dark:border-slate-700/50 p-4 mb-6">
+            <div className="flex items-center gap-2 overflow-x-auto">
+              <Input
+                placeholder="REF"
+                name="ref"
+                value={filters.ref}
+                onChange={handleFilterChange}
+                className="rounded-xl w-32 flex-shrink-0"
+              />
+              <Input
+                placeholder="Marca"
+                name="brand"
+                value={filters.brand}
+                onChange={handleFilterChange}
+                className="rounded-xl w-32 flex-shrink-0"
+              />
+              <Input
+                placeholder="Campanha"
+                name="campaign"
+                value={filters.campaign}
+                onChange={handleFilterChange}
+                className="rounded-xl w-32 flex-shrink-0"
+              />
+              <Input
+                placeholder="Data"
+                name="date"
+                value={filters.date}
+                onChange={handleFilterChange}
+                className="rounded-xl w-32 flex-shrink-0"
+              />
+              <Input
+                placeholder="Stock"
+                name="stock"
+                value={filters.stock}
+                onChange={handleFilterChange}
+                className="rounded-xl w-24 flex-shrink-0"
+              />
+              <Input
+                placeholder="Localização"
+                name="localidade"
+                value={filters.localidade}
+                onChange={handleFilterChange}
+                className="rounded-xl w-32 flex-shrink-0"
+              />
+              <Input
+                placeholder="Tipologia"
+                name="tipologia"
+                value={filters.tipologia}
+                onChange={handleFilterChange}
+                className="rounded-xl w-32 flex-shrink-0"
+              />
             </div>
           </div>
         )}
 
-        {/* Main Table */}
-        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+        {/* Main Table with improved styling */}
+        <div className="bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm rounded-2xl shadow-lg border border-slate-200/50 dark:border-slate-700/50 overflow-hidden">
           <div className="overflow-x-auto">
             <Table>
-              <TableHeader>
-                <TableRow className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
-                  <TableHead className="text-center p-4 font-semibold text-gray-900 dark:text-gray-100">REF</TableHead>
-                  <TableHead className="text-center p-4 font-semibold text-gray-900 dark:text-gray-100">Image</TableHead>
-                  <TableHead className="text-center p-4 font-semibold text-gray-900 dark:text-gray-100">Altura</TableHead>
-                  <TableHead className="text-center p-4 font-semibold text-gray-900 dark:text-gray-100">Largura</TableHead>
-                  <TableHead className="text-center p-4 font-semibold text-gray-900 dark:text-gray-100">Marca</TableHead>
-                  <TableHead className="text-center p-4 font-semibold text-gray-900 dark:text-gray-100">Campanha</TableHead>
-                  <TableHead className="text-center p-4 font-semibold text-gray-900 dark:text-gray-100">Data</TableHead>
-                  <TableHead className="text-center p-4 font-semibold text-gray-900 dark:text-gray-100">Stock</TableHead>
-                  <TableHead className="text-center p-4 font-semibold text-gray-900 dark:text-gray-100">Localização</TableHead>
-                  <TableHead className="text-center p-4 font-semibold text-gray-900 dark:text-gray-100">Tipo</TableHead>
-                  <TableHead className="text-center p-4 font-semibold text-gray-900 dark:text-gray-100">Actions</TableHead>
+              <TableHeader className="sticky top-0 z-10">
+                <TableRow className="bg-slate-50/90 dark:bg-slate-700/90 backdrop-blur-sm border-b border-slate-200/50 dark:border-slate-600/50">
+                  {/* Updated header typography */}
+                  {visibleColumns.ref && (
+                    <TableHead className="text-center p-4 font-semibold text-slate-600 dark:text-slate-300 text-sm tracking-wider uppercase">
+                      REF
+                    </TableHead>
+                  )}
+                  {visibleColumns.image && <TableHead className="text-center p-4 font-semibold text-gray-900 dark:text-gray-100">Image</TableHead>}
+                  {visibleColumns.height && <TableHead className="text-center p-4 font-semibold text-gray-900 dark:text-gray-100">Altura</TableHead>}
+                  {visibleColumns.width && <TableHead className="text-center p-4 font-semibold text-gray-900 dark:text-gray-100">Largura</TableHead>}
+                  {visibleColumns.brand && <TableHead className="text-center p-4 font-semibold text-gray-900 dark:text-gray-100">Marca</TableHead>}
+                  {visibleColumns.campaign && <TableHead className="text-center p-4 font-semibold text-gray-900 dark:text-gray-100">Campanha</TableHead>}
+                  {visibleColumns.date && <TableHead className="text-center p-4 font-semibold text-gray-900 dark:text-gray-100">Data</TableHead>}
+                  {visibleColumns.stock && <TableHead className="text-center p-4 font-semibold text-gray-900 dark:text-gray-100">Stock</TableHead>}
+                  {visibleColumns.localidade && <TableHead className="text-center p-4 font-semibold text-gray-900 dark:text-gray-100">Localização</TableHead>}
+                  {visibleColumns.tipologia && <TableHead className="text-center p-4 font-semibold text-gray-900 dark:text-gray-100">Tipo</TableHead>}
+                  {visibleColumns.actions && <TableHead className="text-center p-4 font-semibold text-gray-900 dark:text-gray-100">Actions</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredProducts.map((product) => (
+                {filteredProducts.map((product, index) => (
                   <TableRow 
                     key={product.ref}
-                    className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors duration-200"
+                    className={`
+                      ${index % 2 === 0 ? 'bg-white/50 dark:bg-slate-800/50' : 'bg-slate-50/50 dark:bg-slate-700/50'}
+                      hover:bg-blue-50/50 dark:hover:bg-blue-900/20 
+                      border-b border-slate-200/50 dark:border-slate-700/50
+                      transition-all duration-200
+                    `}
                   >
-                    <TableCell className="text-center p-4 text-gray-900 dark:text-gray-100">{product.ref}</TableCell>
-                    <TableCell className="text-center p-4">
+                    {visibleColumns.ref && <TableCell className="text-center p-4 text-gray-900 dark:text-gray-100">{product.ref}</TableCell>}
+                    {visibleColumns.image && <TableCell className="text-center p-4">
                       <Button 
                         onClick={() => window.open(product.image, '_blank')} 
                         className="h-9 w-9 p-0 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-xl transition-colors duration-200"
                       >
                         <FontAwesomeIcon icon={faImage} className="h-4 w-4 text-gray-600 dark:text-gray-300" />
                       </Button>
-                    </TableCell>
-                    <TableCell className="text-center p-4 text-gray-900 dark:text-gray-100">{product.height}</TableCell>
-                    <TableCell className="text-center p-4 text-gray-900 dark:text-gray-100">{product.width}</TableCell>
-                    <TableCell className="text-center p-4 text-gray-900 dark:text-gray-100">{product.brand}</TableCell>
-                    <TableCell className="text-center p-4 text-gray-900 dark:text-gray-100">{product.campaign}</TableCell>
-                    <TableCell className="text-center p-4 text-gray-900 dark:text-gray-100">
+                    </TableCell>}
+                    {visibleColumns.height && <TableCell className="text-center p-4 text-gray-900 dark:text-gray-100">{product.height}</TableCell>}
+                    {visibleColumns.width && <TableCell className="text-center p-4 text-gray-900 dark:text-gray-100">{product.width}</TableCell>}
+                    {visibleColumns.brand && <TableCell className="text-center p-4 text-gray-900 dark:text-gray-100">{product.brand}</TableCell>}
+                    {visibleColumns.campaign && <TableCell className="text-center p-4 text-gray-900 dark:text-gray-100">{product.campaign}</TableCell>}
+                    {visibleColumns.date && <TableCell className="text-center p-4 text-gray-900 dark:text-gray-100">
                       {new Date(product.date).toLocaleDateString('pt-BR')}
-                    </TableCell>
-                    <TableCell className="text-center p-4">
+                    </TableCell>}
+                    {visibleColumns.stock && <TableCell className="text-center p-4">
                       <span className={`inline-flex items-center justify-center px-3 py-1 rounded-full text-sm font-medium ${
                         product.stock > 0 
                           ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
@@ -353,39 +503,39 @@ export default function InventoryTable() {
                       }`}>
                         {product.stock}
                       </span>
-                    </TableCell>
-                    <TableCell className="text-center p-4 text-gray-900 dark:text-gray-100">{product.localidade}</TableCell>
-                    <TableCell className="text-center p-4 text-gray-900 dark:text-gray-100">{product.tipologia}</TableCell>
-                    <TableCell className="text-center p-4">
+                    </TableCell>}
+                    {visibleColumns.localidade && <TableCell className="text-center p-4 text-gray-900 dark:text-gray-100">{product.localidade}</TableCell>}
+                    {visibleColumns.tipologia && <TableCell className="text-center p-4 text-gray-900 dark:text-gray-100">{product.tipologia}</TableCell>}
+                    {visibleColumns.actions && <TableCell className="text-center p-4">
                       <div className="flex gap-2 justify-end">
                         <Button
                           variant="ghost"
                           size="icon"
                           onClick={() => handleEdit(product)}
-                          className="h-9 w-9 p-0 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-xl transition-colors duration-200"
+                          className="h-9 w-9 p-0 bg-slate-100 dark:bg-slate-700 hover:bg-blue-100 dark:hover:bg-blue-900/30 rounded-xl transition-all duration-200 transform hover:scale-105"
                         >
-                          <Pencil1Icon className="h-4 w-4 text-gray-600 dark:text-gray-300" />
+                          <Pencil1Icon className="h-4 w-4 text-blue-600 dark:text-blue-400" />
                         </Button>
                         
                         <Button
                           variant="ghost"
                           size="icon"
                           onClick={() => handleShowNotes(product)}
-                          className="h-9 w-9 p-0 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-xl transition-colors duration-200"
+                          className="h-9 w-9 p-0 bg-slate-100 dark:bg-slate-700 hover:bg-blue-100 dark:hover:bg-blue-900/30 rounded-xl transition-all duration-200 transform hover:scale-105"
                         >
-                          <EyeOpenIcon className="h-4 w-4 text-gray-600 dark:text-gray-300" />
+                          <EyeOpenIcon className="h-4 w-4 text-blue-600 dark:text-blue-400" />
                         </Button>
                         
                         <Button
                           variant="ghost"
                           size="icon"
                           onClick={() => handleDelete(product.ref)}
-                          className="h-9 w-9 p-0 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-xl transition-colors duration-200 text-red-500 hover:text-red-700"
+                          className="h-9 w-9 p-0 bg-slate-100 dark:bg-slate-700 hover:bg-blue-100 dark:hover:bg-blue-900/30 rounded-xl transition-all duration-200 transform hover:scale-105 text-red-500 hover:text-red-700"
                         >
                           <TrashIcon className="h-4 w-4" />
                         </Button>
                       </div>
-                    </TableCell>
+                    </TableCell>}
                   </TableRow>
                 ))}
               </TableBody>
@@ -393,146 +543,197 @@ export default function InventoryTable() {
           </div>
         </div>
 
-        {/* Pagination */}
-        <div className="mt-6 flex justify-between items-center">
-          <Button 
-            onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))} 
-            disabled={currentPage === 1}
-            className="flex items-center gap-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl px-4 py-2.5 transition-all duration-300"
-          >
-            <FontAwesomeIcon icon={faChevronLeft} />
-            Previous
-          </Button>
-          <span className="text-sm font-medium text-gray-600 dark:text-gray-300">
-            Page {currentPage} of {totalPages}
-          </span>
-          <Button 
-            onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))} 
-            disabled={currentPage === totalPages}
-            className="flex items-center gap-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl px-4 py-2.5 transition-all duration-300"
-          >
-            Next
-            <FontAwesomeIcon icon={faChevronRight} />
-          </Button>
-        </div>
+        {/* Footer */}
+        <footer className="mt-8 py-6 border-t border-slate-200 dark:border-slate-800">
+          <div className="text-center text-sm text-slate-500 dark:text-slate-400">
+            © 2025 BEZE Solutions. Todos os direitos reservados.
+          </div>
+        </footer>
+      </div>
 
-        {/* Notes Modal */}
-        <Modal isOpen={notesModalOpen} onClose={handleCloseNotesModal}>
-          <div className="divide-y divide-gray-100">
-            <div className="px-6 py-4 flex justify-between items-center bg-gray-50">
-              <h2 className="text-xl font-semibold text-gray-800">Notes</h2>
-              {!editingNotes && (
-                <Button 
-                  onClick={() => setEditingNotes(true)}
-                  className="bg-blue-500 hover:bg-blue-600 text-white p-2 rounded-full transition-colors"
-                >
-                  <FontAwesomeIcon icon={faEdit} />
-                </Button>
-              )}
-            </div>
-            <div className="p-6 space-y-4">
+      {/* Updated pagination controls */}
+      <div className="mt-6 flex justify-between items-center">
+        <Button 
+          onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))} 
+          disabled={currentPage === 1}
+          className="flex items-center gap-2 bg-white/80 backdrop-blur-sm dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl px-4 py-2.5 transition-all duration-300 transform hover:scale-105"
+        >
+          <FontAwesomeIcon icon={faChevronLeft} />
+          Previous
+        </Button>
+        <span className="text-sm font-medium text-gray-600 dark:text-gray-300">
+          Page {currentPage} of {totalPages}
+        </span>
+        <Button 
+          onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))} 
+          disabled={currentPage === totalPages}
+          className="flex items-center gap-2 bg-white/80 backdrop-blur-sm dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl px-4 py-2.5 transition-all duration-300 transform hover:scale-105"
+        >
+          Next
+          <FontAwesomeIcon icon={faChevronRight} />
+        </Button>
+      </div>
+
+      {/* Notes Modal */}
+      <Modal isOpen={notesModalOpen} onClose={handleCloseNotesModal}>
+        <div className="divide-y divide-gray-100">
+          <div className="px-6 py-4 flex justify-between items-center bg-gray-50">
+            <h2 className="text-xl font-semibold text-gray-800">Notes</h2>
+            {!editingNotes && (
+              <Button 
+                onClick={() => setEditingNotes(true)}
+                className="bg-blue-500 hover:bg-blue-600 text-white p-2 rounded-full transition-colors"
+              >
+                <FontAwesomeIcon icon={faEdit} />
+              </Button>
+            )}
+          </div>
+          <div className="p-6 space-y-4">
+            {editingNotes ? (
+              <textarea
+                className="w-full p-4 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                value={notes || ''}
+                onChange={(e) => setNotes(e.target.value)}
+                rows={4}
+                placeholder="Add your notes here..."
+              />
+            ) : (
+              <p className="w-full p-4 bg-gray-50 rounded-xl min-h-[100px] text-gray-700">
+                {notes || 'No notes available for this product.'}
+              </p>
+            )}
+            <div className="flex justify-end gap-2 pt-4">
               {editingNotes ? (
-                <textarea
-                  className="w-full p-4 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
-                  value={notes || ''}
-                  onChange={(e) => setNotes(e.target.value)}
-                  rows={4}
-                  placeholder="Add your notes here..."
-                />
-              ) : (
-                <p className="w-full p-4 bg-gray-50 rounded-xl min-h-[100px] text-gray-700">
-                  {notes || 'No notes available for this product.'}
-                </p>
-              )}
-              <div className="flex justify-end gap-2 pt-4">
-                {editingNotes ? (
-                  <>
-                    <Button 
-                      onClick={handleUpdateNotes}
-                      className="bg-green-500 hover:bg-green-600 text-white transition-colors px-6"
-                    >
-                      Save
-                    </Button>
-                    <Button 
-                      onClick={handleCloseNotesModal}
-                      className="bg-gray-500 hover:bg-gray-600 text-white transition-colors px-6"
-                    >
-                      Cancel
-                    </Button>
-                  </>
-                ) : (
+                <>
+                  <Button 
+                    onClick={handleUpdateNotes}
+                    className="bg-green-500 hover:bg-green-600 text-white transition-colors px-6"
+                  >
+                    Save
+                  </Button>
                   <Button 
                     onClick={handleCloseNotesModal}
                     className="bg-gray-500 hover:bg-gray-600 text-white transition-colors px-6"
                   >
-                    Close
+                    Cancel
                   </Button>
-                )}
-              </div>
-            </div>
-          </div>
-        </Modal>
-
-        {/* Add Product Modal */}
-        <Modal isOpen={addProductModalOpen} onClose={() => setAddProductModalOpen(false)}>
-          <div className="divide-y divide-gray-100">
-            <div className="px-6 py-4 flex justify-between items-center bg-gray-50">
-              <h2 className="text-xl font-semibold text-gray-800">Add New Product</h2>
-              <Button 
-                onClick={() => setAddProductModalOpen(false)}
-                className="text-gray-500 hover:text-gray-700 transition-colors"
-              >
-                <FontAwesomeIcon icon={faTimes} className="text-xl" />
-              </Button>
-            </div>
-            <div className="p-6">
-              <InventoryForm />
-            </div>
-          </div>
-        </Modal>
-
-        {/* Edit Product Modal */}
-        <Modal isOpen={editModalOpen} onClose={handleCloseEditModal}>
-          <div className="divide-y divide-gray-100">
-            <div className="px-6 py-4 flex justify-between items-center bg-gray-50">
-              <h2 className="text-xl font-semibold text-gray-800">Edit Product</h2>
-              <Button 
-                onClick={handleCloseEditModal}
-                className="text-gray-500 hover:text-gray-700 transition-colors"
-              >
-                <FontAwesomeIcon icon={faTimes} className="text-xl" />
-              </Button>
-            </div>
-            <div className="p-6">
-              {editingProduct && (
-                <EditProductForm product={editingProduct} onUpdate={handleUpdate} onCancel={handleCloseEditModal} />
+                </>
+              ) : (
+                <Button 
+                  onClick={handleCloseNotesModal}
+                  className="bg-gray-500 hover:bg-gray-600 text-white transition-colors px-6"
+                >
+                  Close
+                </Button>
               )}
             </div>
           </div>
-        </Modal>
+        </div>
+      </Modal>
 
-        {/* Deleted Products Modal */}
-        <Modal 
-          isOpen={deletedProductsModalOpen} 
-          onClose={() => setDeletedProductsModalOpen(false)}
-          isWide={true}
-        >
-          <div className="divide-y divide-gray-100">
-            <div className="px-6 py-4 flex justify-between items-center bg-gray-50">
-              <h2 className="text-xl font-semibold text-gray-800">Deleted Products</h2>
+      {/* Add Product Modal - Redesigned */}
+      <Modal isOpen={addProductModalOpen} onClose={() => setAddProductModalOpen(false)}>
+        <div className="bg-gradient-to-b from-white to-slate-50 dark:from-slate-800 dark:to-slate-900 rounded-2xl overflow-hidden">
+          {/* Header Section */}
+          <div className="px-8 py-6 border-b border-slate-200 dark:border-slate-700">
+            <div className="flex justify-between items-center">
+              <div>
+                <h2 className="text-2xl font-bold text-slate-900 dark:text-white">
+                  Adicionar Produto
+                </h2>
+                <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                  Preencha os detalhes abaixo para adicionar um novo produto
+                </p>
+              </div>
               <Button 
-                onClick={() => setDeletedProductsModalOpen(false)}
-                className="text-gray-500 hover:text-gray-700 transition-colors"
+                onClick={() => setAddProductModalOpen(false)}
+                className="h-10 w-10 rounded-full bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-600 dark:text-slate-300 transition-all duration-200 hover:scale-105"
               >
-                <FontAwesomeIcon icon={faTimes} className="text-xl" />
+                <FontAwesomeIcon icon={faTimes} className="text-lg" />
               </Button>
             </div>
-            <div className="p-6">
-              <DeletedProducts />
+          </div>
+
+          {/* Form Content */}
+          <div className="p-8">
+            <div className="max-w-3xl mx-auto">
+              <InventoryForm 
+                selectedWarehouse={selectedWarehouse} 
+                onSuccess={() => {
+                  setAddProductModalOpen(false);
+                  fetchProducts();
+                }}
+              />
             </div>
           </div>
-        </Modal>
-      </div>
+        </div>
+      </Modal>
+
+      {/* Edit Product Modal */}
+      <Modal isOpen={editModalOpen} onClose={handleCloseEditModal}>
+        <div className="divide-y divide-gray-100">
+          <div className="px-6 py-4 flex justify-between items-center bg-gray-50">
+            <h2 className="text-xl font-semibold text-gray-800">Edit Product</h2>
+            <Button 
+              onClick={handleCloseEditModal}
+              className="text-gray-500 hover:text-gray-700 transition-colors"
+            >
+              <FontAwesomeIcon icon={faTimes} className="text-xl" />
+            </Button>
+          </div>
+          <div className="p-6">
+            {editingProduct && (
+              <EditProductForm product={editingProduct} onUpdate={handleUpdate} onCancel={handleCloseEditModal} />
+            )}
+          </div>
+        </div>
+      </Modal>
+
+      {/* Deleted Products Modal */}
+      <Modal 
+        isOpen={deletedProductsModalOpen} 
+        onClose={() => setDeletedProductsModalOpen(false)}
+        isWide={true}
+      >
+        <div className="divide-y divide-gray-100">
+          <div className="px-6 py-4 flex justify-between items-center bg-gray-50">
+            <h2 className="text-xl font-semibold text-gray-800">Deleted Products</h2>
+            <Button 
+              onClick={() => setDeletedProductsModalOpen(false)}
+              className="text-gray-500 hover:text-gray-700 transition-colors"
+            >
+              <FontAwesomeIcon icon={faTimes} className="text-xl" />
+            </Button>
+          </div>
+          <div className="p-6">
+            <DeletedProducts />
+          </div>
+        </div>
+      </Modal>
+
+      {/* Column Selector Modal */}
+      <Modal isOpen={showColumnSelector} onClose={() => setShowColumnSelector(false)}>
+        <div className="p-6 space-y-6">
+          <h2 className="text-xl font-semibold text-center">Selecione as Colunas</h2>
+          <div className="flex justify-center gap-4 mb-6">
+            <Button onClick={selectAllColumns} className="bg-blue-600 hover:bg-blue-700 text-white rounded-full px-6 py-2">Selecionar Todas</Button>
+            <Button onClick={deselectAllColumns} className="bg-gray-600 hover:bg-gray-700 text-white rounded-full px-6 py-2">Remover Todas</Button>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            {Object.keys(visibleColumns).map((column) => (
+              <div key={column} className="flex items-center">
+                <input
+                  type="checkbox"
+                  checked={visibleColumns[column as keyof typeof visibleColumns]}
+                  onChange={() => toggleColumnVisibility(column as keyof typeof visibleColumns)}
+                  className="mr-2 accent-blue-600"
+                />
+                <label className="text-gray-700 dark:text-gray-300">{column.charAt(0).toUpperCase() + column.slice(1)}</label>
+              </div>
+            ))}
+          </div>
+        </div>
+      </Modal>
     </div>
   )
 }

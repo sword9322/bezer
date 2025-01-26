@@ -105,7 +105,7 @@ export default function SettingsPage() {
 
   return (
     <div className="container mx-auto p-6 max-w-7xl mt-10">
-      <div className="flex justify-between items-center mb-8">
+      <div className="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
         <h1 className="text-3xl font-bold">Settings</h1>
         <Link href="/">
           <Button className="bg-gray-500 hover:bg-gray-600">
@@ -115,7 +115,7 @@ export default function SettingsPage() {
       </div>
       
       <Tabs defaultValue="brands" className="space-y-6">
-        <TabsList className="grid grid-cols-5 gap-4 bg-gray-100 p-2 rounded-lg">
+        <TabsList className="grid grid-cols-2 md:grid-cols-5 gap-4 bg-gray-100 p-2 rounded-lg">
           <TabsTrigger value="brands" className="flex items-center gap-2">
             <FontAwesomeIcon icon={faBoxes} />
             Marcas
@@ -140,7 +140,7 @@ export default function SettingsPage() {
 
         <TabsContent value="brands">
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
+            <CardHeader className="flex flex-col md:flex-row items-center justify-between gap-4">
               <div>
                 <CardTitle>Gestão de Marcas</CardTitle>
                 <CardDescription>
@@ -157,7 +157,7 @@ export default function SettingsPage() {
               </Button>
             </CardHeader>
             <CardContent>
-              <form onSubmit={handleAddBrand} className="flex gap-4 mb-6">
+              <form onSubmit={handleAddBrand} className="flex flex-col md:flex-row gap-4 mb-6">
                 <div className="flex-1">
                   <Label htmlFor="brand">Nova Marca</Label>
                   <Input
@@ -168,7 +168,7 @@ export default function SettingsPage() {
                     className="mt-1"
                   />
                 </div>
-                <Button type="submit" className="mt-7" disabled={isLoading}>
+                <Button type="submit" className="mt-7 md:mt-0" disabled={isLoading}>
                   Adicionar
                 </Button>
               </form>
@@ -197,7 +197,7 @@ export default function SettingsPage() {
 
         <TabsContent value="tipologias">
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
+            <CardHeader className="flex flex-col md:flex-row items-center justify-between gap-4">
               <div>
                 <CardTitle>Gestão de Tipologias</CardTitle>
                 <CardDescription>
@@ -214,7 +214,7 @@ export default function SettingsPage() {
               </Button>
             </CardHeader>
             <CardContent>
-              <form onSubmit={handleAddTipologia} className="flex gap-4 mb-6">
+              <form onSubmit={handleAddTipologia} className="flex flex-col md:flex-row gap-4 mb-6">
                 <div className="flex-1">
                   <Label htmlFor="tipologia">Nova Tipologia</Label>
                   <Input
@@ -225,7 +225,7 @@ export default function SettingsPage() {
                     className="mt-1"
                   />
                 </div>
-                <Button type="submit" className="mt-7" disabled={isLoading}>
+                <Button type="submit" className="mt-7 md:mt-0" disabled={isLoading}>
                   Adicionar
                 </Button>
               </form>
