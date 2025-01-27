@@ -7,13 +7,15 @@ import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Product } from './InventoryTable'
 import { fetchBrands, fetchTipologias } from '@/app/actions'
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
+import { faSpinner, faBox, faRuler, faBoxes } from '@fortawesome/free-solid-svg-icons'
 
 export default function EditProductForm({ product, onUpdate, onCancel }: { 
   product: Product
   onUpdate: (product: Product) => void
   onCancel: () => void 
 }) {
-  const { register, handleSubmit } = useForm<Product>({
+  const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<Product>({
     defaultValues: product
   })
   const [brands, setBrands] = useState<string[]>([])
@@ -34,7 +36,6 @@ export default function EditProductForm({ product, onUpdate, onCancel }: {
   }, []);
 
   const onSubmit = (data: Product) => {
-    // If "outro" is selected, use the custom input value
     if (data.tipologia === 'outro') {
       data.tipologia = customTipologiaInput;
     }
@@ -42,95 +43,242 @@ export default function EditProductForm({ product, onUpdate, onCancel }: {
   };
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-      <h2 className="text-2xl font-bold mb-4 text-center">Edit Product</h2>
-      <div className="w-full">
-        <Label htmlFor="ref">Reference</Label>
-        <Input id="ref" {...register('ref')} className="rounded-md shadow-sm w-full" />
+    <div className="bg-gradient-to-b from-white to-slate-50 dark:from-slate-800 dark:to-slate-900 p-4 rounded-2xl">
+      {/* Header Section */}
+      <div className="text-center mb-5">
+        <h2 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-blue-800 dark:from-blue-400 dark:to-blue-600">
+          Editar Produto
+        </h2>
       </div>
-      <div className="w-full">
-        <Label htmlFor="brand">Marca</Label>
-        <select
-          id="brand"
-          {...register('brand')}
-          className="border rounded p-1 w-full"
-        >
-          <option value="">Selecione uma marca</option>
-          {brands.map((brand) => (
-            <option key={brand} value={brand}>{brand}</option>
-          ))}
-        </select>
-      </div>
-      <div className="w-full">
-        <Label htmlFor="campaign">Campaign</Label>
-        <Input id="campaign" {...register('campaign')} className="rounded-md shadow-sm w-full" />
-      </div>
-      <div className="w-full">
-        <Label htmlFor="height">Height</Label>
-        <Input id="height" type="number" {...register('height')} className="w-full" />
-      </div>
-      <div className="w-full">
-        <Label htmlFor="width">Width</Label>
-        <Input id="width" type="number" {...register('width')} className="w-full" />
-      </div>
-      <div className="w-full">
-        <Label htmlFor="stock">Stock</Label>
-        <Input id="stock" type="number" {...register('stock')} className="w-full" />
-      </div>
-      <div className="w-full">
-        <Label htmlFor="localidade">Localidade</Label>
-        <select
-          id="localidade"
-          {...register('localidade')}
-          className="border rounded p-1 w-full"
-        >
-          <option value="">Selecione uma localidade</option>
-          {["R1", "N1", "N2", "R2", "N3", "N4", "R3", "N5", "N6", "R4", "N7", "N8", "R5", "N9", "N10", "R6", "N11", "N12", "R7", "N13", "N14", "R8", "N15", "N16", "R9", "N17", "N18", "R10", "N19", "N20", "R11", "N21", "N22", "R12", "N23", "N24", "R13", "N25", "N26", "R14", "N27", "N28", "R15", "N29", "N30", "R16", "N31", "N32", "R17", "N33", "N34", "R18", "N35", "N36"].map((localidade) => (
-            <option key={localidade} value={localidade}>{localidade}</option>
-          ))}
-        </select>
-      </div>
-      <div className="space-y-2">
-        <Label htmlFor="tipologia">Tipologia</Label>
-        <select
-          id="tipologia"
-          {...register('tipologia')}
-          className="w-full rounded-lg border-gray-300 focus:border-blue-500 focus:ring-blue-500 bg-white"
-          onChange={(e) => {
-            const selectedValue = e.target.value;
-            if (selectedValue === 'outro') {
-              setCustomTipologia('outro');
-              setCustomTipologiaInput('');
-            } else {
-              setCustomTipologia(selectedValue);
-              setCustomTipologiaInput('');
-            }
-          }}
-        >
-          <option value="">Selecione uma tipologia</option>
-          {tipologias.map((tipologia) => (
-            <option key={tipologia} value={tipologia}>{tipologia}</option>
-          ))}
-          <option value="outro">Outro (com descrição)</option>
-        </select>
-        {customTipologia === 'outro' && (
-          <Input
-            type="text"
-            placeholder="Coloque a tipologia aqui"
-            value={customTipologiaInput}
-            onChange={(e) => setCustomTipologiaInput(e.target.value)}
-            className="mt-2"
-          />
-        )}
-      </div>
-      <div className="flex justify-end gap-4">
-        <Button type="button" variant="outline" onClick={onCancel}>
-          Cancelar
-        </Button>
-        <Button type="submit">
-          Salvar
-        </Button>
-      </div>
-    </form>
+
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+        {/* Product Info Section */}
+        <div className="bg-white/50 dark:bg-slate-800/50 rounded-xl p-6 space-y-2 backdrop-blur-sm border border-slate-200/50 dark:border-slate-700/50">
+          <h3 className="text-lg font-semibold text-slate-900 dark:text-white flex items-center gap-2">
+            <FontAwesomeIcon icon={faBox} className="text-blue-500" />
+            Informações do Produto
+          </h3>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-1">
+              <Label htmlFor="ref" className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                Referência
+              </Label>
+              <div className="relative">
+                <Input
+                  id="ref"
+                  {...register('ref', { required: 'Referência é obrigatória' })}
+                  className="w-full rounded-xl border-slate-300 dark:border-slate-600 focus:border-blue-500 focus:ring-blue-500 dark:bg-slate-800 dark:text-white transition-all duration-200"
+                  placeholder="REF-0000"
+                />
+                {errors.ref && (
+                  <span className="text-xs text-red-500 mt-1">{errors.ref.message}</span>
+                )}
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <Label htmlFor="brand" className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                Marca
+              </Label>
+              <select
+                id="brand"
+                {...register('brand', { required: 'Marca é obrigatória' })}
+                className="w-full rounded-xl border-slate-300 dark:border-slate-600 focus:border-blue-500 focus:ring-blue-500 dark:bg-slate-800 dark:text-white transition-all duration-200"
+              >
+                <option value="">Marca</option>
+                {brands.map((brand) => (
+                  <option key={brand} value={brand}>{brand}</option>
+                ))}
+              </select>
+              {errors.brand && (
+                <span className="text-xs text-red-500 mt-1">{errors.brand.message}</span>
+              )}
+            </div>
+          </div>
+
+          <div className="space-y-1">
+            <Label htmlFor="campaign" className="text-sm font-medium text-slate-700 dark:text-slate-300">
+              Campanha
+            </Label>
+            <Input
+              id="campaign"
+              {...register('campaign', { required: 'Campanha é obrigatória' })}
+              className="w-full rounded-xl border-slate-300 dark:border-slate-600 focus:border-blue-500 focus:ring-blue-500 dark:bg-slate-800 dark:text-white transition-all duration-200"
+              placeholder="Nome da campanha"
+            />
+            {errors.campaign && (
+              <span className="text-xs text-red-500 mt-1">{errors.campaign.message}</span>
+            )}
+          </div>
+        </div>
+
+        {/* Dimensions Section */}
+        <div className="bg-white/50 dark:bg-slate-800/50 rounded-xl p-6 space-y-2 backdrop-blur-sm border border-slate-200/50 dark:border-slate-700/50">
+          <h3 className="text-lg font-semibold text-slate-900 dark:text-white flex items-center gap-2">
+            <FontAwesomeIcon icon={faRuler} className="text-blue-500" />
+            Dimensões
+          </h3>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-2">
+              <Label htmlFor="height" className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                Altura (cm)
+              </Label>
+              <Input
+                id="height"
+                type="number"
+                {...register('height', { required: 'Altura é obrigatória' })}
+                className="w-full rounded-xl border-slate-300 dark:border-slate-600 focus:border-blue-500 focus:ring-blue-500 dark:bg-slate-800 dark:text-white transition-all duration-200"
+              />
+              {errors.height && (
+                <span className="text-xs text-red-500 mt-1">{errors.height.message}</span>
+              )}
+            </div>
+
+            <div className="space-y-1">
+              <Label htmlFor="width" className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                Largura (cm)
+              </Label>
+              <Input
+                id="width"
+                type="number"
+                {...register('width', { required: 'Largura é obrigatória' })}
+                className="w-full rounded-xl border-slate-300 dark:border-slate-600 focus:border-blue-500 focus:ring-blue-500 dark:bg-slate-800 dark:text-white transition-all duration-200"
+              />
+              {errors.width && (
+                <span className="text-xs text-red-500 mt-1">{errors.width.message}</span>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Stock & Location Section */}
+        <div className="bg-white/50 dark:bg-slate-800/50 rounded-xl p-6 space-y-2 backdrop-blur-sm border border-slate-200/50 dark:border-slate-700/50">
+          <h3 className="text-lg font-semibold text-slate-900 dark:text-white flex items-center gap-2">
+            <FontAwesomeIcon icon={faBoxes} className="text-blue-500" />
+            Stock e Localização
+          </h3>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-1">
+              <Label htmlFor="stock" className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                Stock
+              </Label>
+              <Input
+                id="stock"
+                type="number"
+                {...register('stock', { required: 'Stock é obrigatório' })}
+                className="w-full rounded-xl border-slate-300 dark:border-slate-600 focus:border-blue-500 focus:ring-blue-500 dark:bg-slate-800 dark:text-white transition-all duration-200"
+              />
+              {errors.stock && (
+                <span className="text-xs text-red-500 mt-1">{errors.stock.message}</span>
+              )}
+            </div>
+
+            <div className="space-y-1">
+              <Label htmlFor="warehouse" className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                Armazém
+              </Label>
+              <select
+                id="warehouse"
+                {...register('warehouse', { required: 'Armazém é obrigatório' })}
+                className="w-full rounded-xl border-slate-300 dark:border-slate-600 focus:border-blue-500 focus:ring-blue-500 dark:bg-slate-800 dark:text-white transition-all duration-200"
+              >
+                <option value="Warehouse 1">Armazém 1</option>
+                <option value="Warehouse 2">Armazém 2</option>
+              </select>
+              {errors.warehouse && (
+                <span className="text-xs text-red-500 mt-1">{errors.warehouse.message}</span>
+              )}
+            </div>
+
+            <div className="space-y-1">
+              <Label htmlFor="localidade" className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                Localidade
+              </Label>
+              <select
+                id="localidade"
+                {...register('localidade', { required: 'Localidade é obrigatória' })}
+                className="w-full rounded-xl border-slate-300 dark:border-slate-600 focus:border-blue-500 focus:ring-blue-500 dark:bg-slate-800 dark:text-white transition-all duration-200"
+              >
+                <option value="">Localidade</option>
+                {["R1", "N1", "N2", "R2", "N3", "N4", "R3", "N5", "N6", "R4", "N7", "N8", "R5", "N9", "N10", "R6", "N11", "N12", "R7", "N13", "N14", "R8", "N15", "N16", "R9", "N17", "N18", "R10", "N19", "N20", "R11", "N21", "N22", "R12", "N23", "N24", "R13", "N25", "N26", "R14", "N27", "N28", "R15", "N29", "N30", "R16", "N31", "N32", "R17", "N33", "N34", "R18", "N35", "N36"].map((localidade) => (
+                  <option key={localidade} value={localidade}>{localidade}</option>
+                ))}
+              </select>
+              {errors.localidade && (
+                <span className="text-xs text-red-500 mt-1">{errors.localidade.message}</span>
+              )}
+            </div>
+
+            <div className="space-y-1">
+              <Label htmlFor="tipologia" className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                Tipologia
+              </Label>
+              <select
+                id="tipologia"
+                {...register('tipologia', { required: 'Tipologia é obrigatória' })}
+                className="w-full rounded-xl border-slate-300 dark:border-slate-600 focus:border-blue-500 focus:ring-blue-500 dark:bg-slate-800 dark:text-white transition-all duration-200"
+                onChange={(e) => {
+                  const selectedValue = e.target.value;
+                  if (selectedValue === 'outro') {
+                    setCustomTipologia('outro');
+                    setCustomTipologiaInput('');
+                  } else {
+                    setCustomTipologia(selectedValue);
+                    setCustomTipologiaInput('');
+                  }
+                }}
+              >
+                <option value="">Tipologia</option>
+                {tipologias.map((tipologia) => (
+                  <option key={tipologia} value={tipologia}>{tipologia}</option>
+                ))}
+                <option value="outro">Outro (com descrição)</option>
+              </select>
+              {errors.tipologia && (
+                <span className="text-xs text-red-500 mt-1">{errors.tipologia.message}</span>
+              )}
+              
+              {customTipologia === 'outro' && (
+                <Input
+                  type="text"
+                  placeholder="Descreva a tipologia"
+                  value={customTipologiaInput}
+                  onChange={(e) => setCustomTipologiaInput(e.target.value)}
+                  className="mt-2 w-full rounded-xl border-slate-300 dark:border-slate-600 focus:border-blue-500 focus:ring-blue-500 dark:bg-slate-800 dark:text-white transition-all duration-200"
+                />
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Action Buttons */}
+        <div className="flex items-center justify-end gap-4 pt-6">
+          <Button
+            type="button"
+            onClick={onCancel}
+            className="px-6 py-2.5 border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-xl transition-all duration-200"
+          >
+            Cancelar
+          </Button>
+          <Button
+            type="submit"
+            disabled={isSubmitting}
+            className="px-6 py-2.5 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-xl shadow-lg hover:shadow-blue-500/25 transition-all duration-200 transform hover:scale-[1.02]"
+          >
+            {isSubmitting ? (
+              <div className="flex items-center">
+                <FontAwesomeIcon icon={faSpinner} className="animate-spin mr-2" />
+                A guardar...
+              </div>
+            ) : (
+              'Guardar Alterações'
+            )}
+          </Button>
+        </div>
+      </form>
+    </div>
   );
 }

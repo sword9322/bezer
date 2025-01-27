@@ -119,7 +119,8 @@ async function getProducts(page: number, warehouse: string, pageSize: number = 1
         stock: Number(row[7]),
         localidade: row[8],
         tipologia: row[9],
-        notes: row[10] || ''
+        notes: row[10] || '',
+        warehouse: row[11] === '1' ? 'Warehouse 1' : 'Warehouse 2'
       }));
 
     return { products, totalPages: Math.ceil(products.length / pageSize) };
@@ -213,7 +214,8 @@ async function updateProduct(updatedProduct: Product) {
       updatedProduct.stock,
       updatedProduct.localidade,
       updatedProduct.tipologia,
-      updatedProduct.notes || '' // Ensure notes is never undefined
+      updatedProduct.notes || '', // Ensure notes is never undefined
+      updatedProduct.warehouse === 'Warehouse 1' ? '1' : '2' // Convert warehouse name to number
     ]);
 
     const updateResponse = await sheets.spreadsheets.values.update({
@@ -232,7 +234,8 @@ async function updateProduct(updatedProduct: Product) {
           updatedProduct.stock,
           updatedProduct.localidade,
           updatedProduct.tipologia,
-          updatedProduct.notes || '' // Ensure notes is never undefined
+          updatedProduct.notes || '', // Ensure notes is never undefined
+          updatedProduct.warehouse === 'Warehouse 1' ? '1' : '2' // Convert warehouse name to number
         ]],
       },
     });
@@ -324,7 +327,7 @@ export async function getDeletedProducts() {
   try {
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId: SPREADSHEET_ID,
-      range: 'DeletedProducts!A1:K',
+      range: 'DeletedProducts!A1:L',
     });
 
     const rows = response.data.values;
@@ -341,7 +344,8 @@ export async function getDeletedProducts() {
       stock: Number(row[7]),
       localidade: row[8],
       tipologia: row[9],
-      notes: row[10] || ''
+      notes: row[10] || '',
+      warehouse: row[11] === '1' ? 'Warehouse 1' : 'Warehouse 2'
     }));
 
     return products;

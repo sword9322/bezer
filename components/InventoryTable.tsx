@@ -32,6 +32,7 @@ export type Product = {
   localidade: string
   tipologia: string
   notes: string
+  warehouse: string
 }
 
 export default function InventoryTable() {
@@ -599,7 +600,7 @@ export default function InventoryTable() {
               />
             ) : (
               <p className="w-full p-4 bg-gray-50 rounded-xl min-h-[100px] text-gray-700">
-                {notes || 'No notes available for this product.'}
+                {notes || 'Sem Notas.'}
               </p>
             )}
             <div className="flex justify-end gap-2 pt-4">
@@ -672,15 +673,6 @@ export default function InventoryTable() {
       {/* Edit Product Modal */}
       <Modal isOpen={editModalOpen} onClose={handleCloseEditModal}>
         <div className="divide-y divide-gray-100">
-          <div className="px-6 py-4 flex justify-between items-center bg-gray-50">
-            <h2 className="text-xl font-semibold text-gray-800">Edit Product</h2>
-            <Button 
-              onClick={handleCloseEditModal}
-              className="text-gray-500 hover:text-gray-700 transition-colors"
-            >
-              <FontAwesomeIcon icon={faTimes} className="text-xl" />
-            </Button>
-          </div>
           <div className="p-6">
             {editingProduct && (
               <EditProductForm product={editingProduct} onUpdate={handleUpdate} onCancel={handleCloseEditModal} />
