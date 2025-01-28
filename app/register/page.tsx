@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label'
 import Link from 'next/link'
 import { toast } from 'sonner'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { faSpinner } from '@fortawesome/free-solid-svg-icons'
+import { faSpinner, faCheck, faTimes } from '@fortawesome/free-solid-svg-icons'
 import { useRouter } from 'next/navigation'
 
 export default function RegisterPage() {
@@ -18,6 +18,28 @@ export default function RegisterPage() {
   const [loading, setLoading] = useState(false)
   const { register, user } = useAuth()
   const router = useRouter()
+
+  // Password validation states
+  const [validations, setValidations] = useState({
+    hasUpperCase: false,
+    hasLowerCase: false,
+    hasNumber: false,
+    hasSpecialChar: false,
+    hasMinLength: false,
+    passwordsMatch: false
+  })
+
+  // Update validations when password changes
+  useEffect(() => {
+    setValidations({
+      hasUpperCase: /[A-Z]/.test(password),
+      hasLowerCase: /[a-z]/.test(password),
+      hasNumber: /[0-9]/.test(password),
+      hasSpecialChar: /[!@#$%^&*(),.?":{}|<>]/.test(password),
+      hasMinLength: password.length >= 8,
+      passwordsMatch: password === confirmPassword && password !== ''
+    })
+  }, [password, confirmPassword])
 
   useEffect(() => {
     if (user) {
@@ -29,7 +51,38 @@ export default function RegisterPage() {
     e.preventDefault()
     setLoading(true)
 
-    if (password !== confirmPassword) {
+    // Check all password requirements
+    if (!validations.hasUpperCase) {
+      toast.error('A senha deve conter pelo menos uma letra maiúscula')
+      setLoading(false)
+      return
+    }
+
+    if (!validations.hasLowerCase) {
+      toast.error('A senha deve conter pelo menos uma letra minúscula')
+      setLoading(false)
+      return
+    }
+
+    if (!validations.hasNumber) {
+      toast.error('A senha deve conter pelo menos um número')
+      setLoading(false)
+      return
+    }
+
+    if (!validations.hasSpecialChar) {
+      toast.error('A senha deve conter pelo menos um caractere especial')
+      setLoading(false)
+      return
+    }
+
+    if (!validations.hasMinLength) {
+      toast.error('A senha deve ter pelo menos 8 caracteres')
+      setLoading(false)
+      return
+    }
+
+    if (!validations.passwordsMatch) {
       toast.error('As senhas não coincidem')
       setLoading(false)
       return
@@ -39,13 +92,31 @@ export default function RegisterPage() {
       await register(email, password)
       toast.success('Registro realizado com sucesso!')
       router.push('/')
-    } catch (error: unknown) {
+    } catch (error: any) {
       console.error('Error registering:', error)
-      toast.error('Erro ao criar conta')
+      if (error.code === 'auth/email-already-in-use') {
+        toast.error('Este email já está em uso')
+      } else if (error.code === 'auth/invalid-email') {
+        toast.error('Email inválido')
+      } else {
+        toast.error('Erro ao criar conta')
+      }
     } finally {
       setLoading(false)
     }
   }
+
+  const ValidationItem = ({ isValid, text }: { isValid: boolean; text: string }) => (
+    <div className="flex items-center gap-2 text-sm">
+      <FontAwesomeIcon
+        icon={isValid ? faCheck : faTimes}
+        className={isValid ? 'text-green-500' : 'text-red-500'}
+      />
+      <span className={isValid ? 'text-green-600' : 'text-slate-600'}>
+        {text}
+      </span>
+    </div>
+  )
 
   if (user) {
     return (
@@ -94,9 +165,16 @@ export default function RegisterPage() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
-                minLength={6}
                 className="w-full px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 focus:ring-2 focus:ring-blue-500 dark:bg-slate-900 dark:text-white transition-all"
               />
+              {/* Password requirements checklist */}
+              <div className="mt-2 space-y-1 bg-slate-50 dark:bg-slate-900 p-3 rounded-lg">
+                <ValidationItem isValid={validations.hasMinLength} text="Mínimo de 8 caracteres" />
+                <ValidationItem isValid={validations.hasUpperCase} text="Uma letra maiúscula" />
+                <ValidationItem isValid={validations.hasLowerCase} text="Uma letra minúscula" />
+                <ValidationItem isValid={validations.hasNumber} text="Um número" />
+                <ValidationItem isValid={validations.hasSpecialChar} text="Um caractere especial (!@#$%^&*)" />
+              </div>
             </div>
 
             <div className="space-y-2">
@@ -108,15 +186,19 @@ export default function RegisterPage() {
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 required
-                minLength={6}
                 className="w-full px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 focus:ring-2 focus:ring-blue-500 dark:bg-slate-900 dark:text-white transition-all"
               />
+              {confirmPassword && (
+                <div className="mt-2">
+                  <ValidationItem isValid={validations.passwordsMatch} text="Senhas coincidem" />
+                </div>
+              )}
             </div>
 
             <Button
               type="submit"
-              disabled={loading}
-              className="w-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white py-2.5 rounded-xl shadow-lg hover:shadow-blue-500/30 transition-all duration-300 flex items-center justify-center gap-2"
+              disabled={loading || !Object.values(validations).every(Boolean)}
+              className="w-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white py-2.5 rounded-xl shadow-lg hover:shadow-blue-500/30 transition-all duration-300 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? (
                 <>
