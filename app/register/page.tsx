@@ -10,6 +10,7 @@ import { toast } from 'sonner'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faSpinner, faCheck, faTimes } from '@fortawesome/free-solid-svg-icons'
 import { useRouter } from 'next/navigation'
+import { FirebaseError } from 'firebase/app'
 
 export default function RegisterPage() {
   const [email, setEmail] = useState('')
@@ -92,12 +93,19 @@ export default function RegisterPage() {
       await register(email, password)
       toast.success('Registro realizado com sucesso!')
       router.push('/')
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error registering:', error)
-      if (error.code === 'auth/email-already-in-use') {
-        toast.error('Este email já está em uso')
-      } else if (error.code === 'auth/invalid-email') {
-        toast.error('Email inválido')
+      if (error instanceof FirebaseError) {
+        switch (error.code) {
+          case 'auth/email-already-in-use':
+            toast.error('Este email já está em uso')
+            break
+          case 'auth/invalid-email':
+            toast.error('Email inválido')
+            break
+          default:
+            toast.error('Erro ao criar conta')
+        }
       } else {
         toast.error('Erro ao criar conta')
       }

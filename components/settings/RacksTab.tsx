@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -22,11 +22,7 @@ export default function RacksTab() {
     warehouse: 'Warehouse 1'
   })
 
-  useEffect(() => {
-    fetchRacks()
-  }, [selectedWarehouse])
-
-  const fetchRacks = async () => {
+  const fetchRacks = useCallback(async () => {
     setLoading(true)
     try {
       const fetchedRacks = await getRacks(selectedWarehouse)
@@ -37,7 +33,11 @@ export default function RacksTab() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [selectedWarehouse])
+
+  useEffect(() => {
+    fetchRacks()
+  }, [fetchRacks])
 
   useEffect(() => {
     setFormData(prev => ({ ...prev, warehouse: selectedWarehouse }))
