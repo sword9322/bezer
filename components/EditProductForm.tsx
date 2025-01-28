@@ -127,32 +127,32 @@ export default function EditProductForm({ product, onUpdate, onCancel }: {
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-2">
-              <Label htmlFor="height" className="text-sm font-medium text-slate-700 dark:text-slate-300">
+              <Label htmlFor="altura" className="text-sm font-medium text-slate-700 dark:text-slate-300">
                 Altura (cm)
               </Label>
               <Input
-                id="height"
+                id="altura"
                 type="number"
-                {...register('height', { required: 'Altura é obrigatória' })}
+                {...register('altura', { required: 'Altura é obrigatória' })}
                 className="w-full rounded-xl border-slate-300 dark:border-slate-600 focus:border-blue-500 focus:ring-blue-500 dark:bg-slate-800 dark:text-white transition-all duration-200"
               />
-              {errors.height && (
-                <span className="text-xs text-red-500 mt-1">{errors.height.message}</span>
+              {errors.altura && (
+                <span className="text-xs text-red-500 mt-1">{errors.altura.message}</span>
               )}
             </div>
 
             <div className="space-y-1">
-              <Label htmlFor="width" className="text-sm font-medium text-slate-700 dark:text-slate-300">
+              <Label htmlFor="largura" className="text-sm font-medium text-slate-700 dark:text-slate-300">
                 Largura (cm)
               </Label>
               <Input
-                id="width"
+                id="largura"
                 type="number"
-                {...register('width', { required: 'Largura é obrigatória' })}
+                {...register('largura', { required: 'Largura é obrigatória' })}
                 className="w-full rounded-xl border-slate-300 dark:border-slate-600 focus:border-blue-500 focus:ring-blue-500 dark:bg-slate-800 dark:text-white transition-all duration-200"
               />
-              {errors.width && (
-                <span className="text-xs text-red-500 mt-1">{errors.width.message}</span>
+              {errors.largura && (
+                <span className="text-xs text-red-500 mt-1">{errors.largura.message}</span>
               )}
             </div>
           </div>

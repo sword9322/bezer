@@ -206,8 +206,8 @@ async function updateProduct(updatedProduct: Product) {
     console.log('Update values:', [
       updatedProduct.ref,
       updatedProduct.image,
-      updatedProduct.height,
-      updatedProduct.width,
+      updatedProduct.altura,
+      updatedProduct.largura,
       updatedProduct.brand,
       updatedProduct.campaign,
       updatedProduct.date,
@@ -226,8 +226,8 @@ async function updateProduct(updatedProduct: Product) {
         values: [[
           updatedProduct.ref,
           updatedProduct.image,
-          updatedProduct.height,
-          updatedProduct.width,
+          updatedProduct.altura,
+          updatedProduct.largura,
           updatedProduct.brand,
           updatedProduct.campaign,
           updatedProduct.date,

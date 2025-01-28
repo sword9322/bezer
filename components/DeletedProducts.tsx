@@ -18,7 +18,11 @@ export default function DeletedProducts() {
 
   const fetchDeletedProducts = async () => {
     const result = await getDeletedProducts();
-    setDeletedProducts(result);
+    setDeletedProducts(result.map(p => ({
+      ...p,
+      altura: p.height,
+      largura: p.width
+    })));
   };
 
   const handleDelete = async (ref: string) => {
@@ -82,8 +86,8 @@ export default function DeletedProducts() {
                   <FontAwesomeIcon icon={faImage} />
                 </Button>
               </TableCell>
-              <TableCell className="text-center whitespace-nowrap">{product.height}</TableCell>
-              <TableCell className="text-center whitespace-nowrap">{product.width}</TableCell>
+              <TableCell className="text-center whitespace-nowrap">{product.altura}</TableCell>
+              <TableCell className="text-center whitespace-nowrap">{product.largura}</TableCell>
               <TableCell className="text-center whitespace-nowrap">{product.brand}</TableCell>
               <TableCell className="text-center whitespace-nowrap">{product.campaign}</TableCell>
               <TableCell className="text-center whitespace-nowrap">{product.date}</TableCell>

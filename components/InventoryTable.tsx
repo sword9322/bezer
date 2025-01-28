@@ -37,8 +37,8 @@ import { Input } from '@/components/ui/input'
 export type Product = {
   ref: string
   image: string
-  height: number
-  width: number
+  altura: number
+  largura: number
   brand: string
   campaign: string
   date: string
@@ -78,8 +78,8 @@ export default function InventoryTable() {
   const [visibleColumns, setVisibleColumns] = useState({
     ref: true,
     image: true,
-    height: true,
-    width: true,
+    altura: true,
+    largura: true,
     brand: true,
     campaign: true,
     date: true,
@@ -122,6 +122,8 @@ export default function InventoryTable() {
     }
     const productsWithNotes = combinedProducts.map((product) => ({
       ...product,
+      altura: product.height || 0,
+      largura: product.width || 0,
       notes: product.notes || '',
     }));
     setProducts(productsWithNotes);
@@ -463,8 +465,8 @@ export default function InventoryTable() {
                     </TableHead>
                   )}
                   {visibleColumns.image && <TableHead className="text-center p-4 font-semibold text-gray-900 dark:text-gray-100">Imagem</TableHead>}
-                  {visibleColumns.height && <TableHead className="text-center p-4 font-semibold text-gray-900 dark:text-gray-100">Altura</TableHead>}
-                  {visibleColumns.width && <TableHead className="text-center p-4 font-semibold text-gray-900 dark:text-gray-100">Largura</TableHead>}
+                  {visibleColumns.altura && <TableHead className="text-center p-4 font-semibold text-gray-900 dark:text-gray-100">Altura</TableHead>}
+                  {visibleColumns.largura && <TableHead className="text-center p-4 font-semibold text-gray-900 dark:text-gray-100">Largura</TableHead>}
                   {visibleColumns.brand && <TableHead className="text-center p-4 font-semibold text-gray-900 dark:text-gray-100">Marca</TableHead>}
                   {visibleColumns.campaign && <TableHead className="text-center p-4 font-semibold text-gray-900 dark:text-gray-100">Campanha</TableHead>}
                   {visibleColumns.date && <TableHead className="text-center p-4 font-semibold text-gray-900 dark:text-gray-100">Data</TableHead>}
@@ -494,8 +496,8 @@ export default function InventoryTable() {
                         <FontAwesomeIcon icon={faImage} className="h-4 w-4 text-gray-600 dark:text-gray-300" />
                       </Button>
                     </TableCell>}
-                    {visibleColumns.height && <TableCell className="text-center p-4 text-gray-900 dark:text-gray-100">{product.height}</TableCell>}
-                    {visibleColumns.width && <TableCell className="text-center p-4 text-gray-900 dark:text-gray-100">{product.width}</TableCell>}
+                    {visibleColumns.altura && <TableCell className="text-center p-4 text-gray-900 dark:text-gray-100">{product.altura}</TableCell>}
+                    {visibleColumns.largura && <TableCell className="text-center p-4 text-gray-900 dark:text-gray-100">{product.largura}</TableCell>}
                     {visibleColumns.brand && <TableCell className="text-center p-4 text-gray-900 dark:text-gray-100">{product.brand}</TableCell>}
                     {visibleColumns.campaign && <TableCell className="text-center p-4 text-gray-900 dark:text-gray-100">{product.campaign}</TableCell>}
                     {visibleColumns.date && <TableCell className="text-center p-4 text-gray-900 dark:text-gray-100">
