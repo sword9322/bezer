@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Button } from '@/components/ui/button'
-import { getProducts, deleteProduct, updateProduct, downloadSheet, downloadPDF } from '@/app/actions'
+import { getProducts, deleteProduct, updateProduct, downloadSheet, downloadPDF, fetchBrands, fetchTipologias } from '@/app/actions'
 import EditProductForm from '@/components/EditProductForm'
 import Modal from '@/components/modals'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
@@ -63,6 +63,9 @@ export default function InventoryTable() {
   const [deletedProductsModalOpen, setDeletedProductsModalOpen] = useState(false);
   const [selectedWarehouse, setSelectedWarehouse] = useState('Warehouse 1');
   const [showColumnSelector, setShowColumnSelector] = useState(false);
+  const [brands, setBrands] = useState<string[]>([]);
+  const [tipologias, setTipologias] = useState<string[]>([]);
+  const [uniqueCampaigns, setUniqueCampaigns] = useState<string[]>([]);
 
   const [filters, setFilters] = useState({
     ref: '',
@@ -134,6 +137,24 @@ export default function InventoryTable() {
     fetchProducts();
   }, [fetchProducts]);
 
+  useEffect(() => {
+    const loadFilterOptions = async () => {
+      const [fetchedBrands, fetchedTipologias] = await Promise.all([
+        fetchBrands(),
+        fetchTipologias()
+      ]);
+      setBrands(fetchedBrands);
+      setTipologias(fetchedTipologias);
+    };
+    loadFilterOptions();
+  }, []);
+
+  useEffect(() => {
+    // Extract unique campaigns from products
+    const campaigns = Array.from(new Set(products.map(p => p.campaign))).filter(Boolean);
+    setUniqueCampaigns(campaigns);
+  }, [products]);
+
   const handleDelete = async (ref: string) => {
     if (window.confirm('Tem certeza que deseja excluir este produto?')) {
       const result = await deleteProduct(ref);
@@ -176,7 +197,7 @@ export default function InventoryTable() {
     fetchProducts();
   };
 
-  const handleFilterChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFilterChange = (e: React.ChangeEvent<HTMLSelectElement | HTMLInputElement>) => {
     const { name, value } = e.target;
     setFilters({ ...filters, [name]: value });
   };
@@ -406,20 +427,28 @@ export default function InventoryTable() {
                 onChange={handleFilterChange}
                 className="rounded-xl w-32 flex-shrink-0"
               />
-              <Input
-                placeholder="Marca"
+              <select
                 name="brand"
                 value={filters.brand}
                 onChange={handleFilterChange}
-                className="rounded-xl w-32 flex-shrink-0"
-              />
-              <Input
-                placeholder="Campanha"
+                className="rounded-xl w-32 flex-shrink-0 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600"
+              >
+                <option value="">Todas Marcas</option>
+                {brands.map((brand) => (
+                  <option key={brand} value={brand}>{brand}</option>
+                ))}
+              </select>
+              <select
                 name="campaign"
                 value={filters.campaign}
                 onChange={handleFilterChange}
-                className="rounded-xl w-32 flex-shrink-0"
-              />
+                className="rounded-xl w-32 flex-shrink-0 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600"
+              >
+                <option value="">Todas Campanhas</option>
+                {uniqueCampaigns.map((campaign) => (
+                  <option key={campaign} value={campaign}>{campaign}</option>
+                ))}
+              </select>
               <Input
                 placeholder="Data"
                 name="date"
@@ -441,13 +470,17 @@ export default function InventoryTable() {
                 onChange={handleFilterChange}
                 className="rounded-xl w-32 flex-shrink-0"
               />
-              <Input
-                placeholder="Tipologia"
+              <select
                 name="tipologia"
                 value={filters.tipologia}
                 onChange={handleFilterChange}
-                className="rounded-xl w-32 flex-shrink-0"
-              />
+                className="rounded-xl w-32 flex-shrink-0 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600"
+              >
+                <option value="">Todas Tipologias</option>
+                {tipologias.map((tipologia) => (
+                  <option key={tipologia} value={tipologia}>{tipologia}</option>
+                ))}
+              </select>
             </div>
           </div>
         )}

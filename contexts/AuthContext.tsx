@@ -14,6 +14,9 @@ import { useRouter } from 'next/navigation';
 interface AuthContextType {
   user: User | null;
   loading: boolean;
+  userRole: string | null;
+  isAdmin: boolean;
+  isManager: boolean;
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
@@ -29,6 +32,7 @@ export function useAuth() {
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
+  const [userRole, setUserRole] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
@@ -38,8 +42,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (user) {
         // Get the ID token and set it in a cookie
         const token = await user.getIdToken();
+        const tokenResult = await user.getIdTokenResult();
+        const role = tokenResult.claims.role as string || 'user';
+        setUserRole(role);
         document.cookie = `firebase-token=${token}; path=/; max-age=3600; SameSite=Strict`;
       } else {
+        setUserRole(null);
         // Clear the token cookie when user is not authenticated
         document.cookie = 'firebase-token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
       }
@@ -148,6 +156,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const value = {
     user,
     loading,
+    userRole,
+    isAdmin: userRole === 'admin',
+    isManager: userRole === 'manager',
     login,
     register,
     logout,

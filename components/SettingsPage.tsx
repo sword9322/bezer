@@ -1,18 +1,20 @@
 'use client';
 
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import BrandsTab from '@/components/settings/BrandsTab';
 import TipologiasTab from '@/components/settings/TipologiasTab';
 import RacksTab from '@/components/settings/RacksTab';
+import UsersTab from '@/components/settings/UsersTab';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter, usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
+import { Button } from '@/components/ui/button';
 
 export default function SettingsPage() {
-  const { user, loading: authLoading } = useAuth();
+  const { user, loading: authLoading, isAdmin } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
   const [pageLoading, setPageLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState('brands');
 
   useEffect(() => {
     console.log('Current path:', pathname);
@@ -66,25 +68,57 @@ export default function SettingsPage() {
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 p-6">
       <div className="max-w-7xl mx-auto">
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">Configurações</h1>
-        <Tabs defaultValue="brands" className="w-full">
-          <TabsList className="grid w-full grid-cols-3 lg:w-[400px]">
-            <TabsTrigger value="brands">Marcas</TabsTrigger>
-            <TabsTrigger value="tipologias">Tipologias</TabsTrigger>
-            <TabsTrigger value="racks">Racks</TabsTrigger>
-          </TabsList>
+        <div className="flex flex-wrap gap-2">
+          <Button
+            onClick={() => setActiveTab('brands')}
+            className={`${
+              activeTab === 'brands'
+                ? 'bg-blue-500 text-white hover:bg-blue-600'
+                : 'bg-white hover:bg-slate-50 text-slate-600 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-300'
+            } transition-colors duration-200`}
+          >
+            Marcas
+          </Button>
+          <Button
+            onClick={() => setActiveTab('tipologias')}
+            className={`${
+              activeTab === 'tipologias'
+                ? 'bg-blue-500 text-white hover:bg-blue-600'
+                : 'bg-white hover:bg-slate-50 text-slate-600 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-300'
+            } transition-colors duration-200`}
+          >
+            Tipologias
+          </Button>
+          <Button
+            onClick={() => setActiveTab('racks')}
+            className={`${
+              activeTab === 'racks'
+                ? 'bg-blue-500 text-white hover:bg-blue-600'
+                : 'bg-white hover:bg-slate-50 text-slate-600 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-300'
+            } transition-colors duration-200`}
+          >
+            Racks
+          </Button>
+          {isAdmin && (
+            <Button
+              onClick={() => setActiveTab('users')}
+              className={`${
+                activeTab === 'users'
+                  ? 'bg-blue-500 text-white hover:bg-blue-600'
+                  : 'bg-white hover:bg-slate-50 text-slate-600 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-300'
+              } transition-colors duration-200`}
+            >
+              Acesso de Usuários
+            </Button>
+          )}
+        </div>
 
-          <TabsContent value="brands" className="mt-6">
-            <BrandsTab />
-          </TabsContent>
-
-          <TabsContent value="tipologias" className="mt-6">
-            <TipologiasTab />
-          </TabsContent>
-
-          <TabsContent value="racks" className="mt-6">
-            <RacksTab />
-          </TabsContent>
-        </Tabs>
+        <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-lg border border-slate-200/50 dark:border-slate-700/50 p-6">
+          {activeTab === 'brands' && <BrandsTab />}
+          {activeTab === 'tipologias' && <TipologiasTab />}
+          {activeTab === 'racks' && <RacksTab />}
+          {activeTab === 'users' && isAdmin && <UsersTab />}
+        </div>
       </div>
     </div>
   );
