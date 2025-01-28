@@ -1,11 +1,13 @@
-import { initializeApp, getApps, cert } from 'firebase-admin/app'
+import * as admin from 'firebase-admin'
 
-const firebaseAdminConfig = {
-  credential: cert({
-    projectId: process.env.FIREBASE_PROJECT_ID,
-    clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-    privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
-  }),
+if (!admin.apps.length) {
+  admin.initializeApp({
+    credential: admin.credential.cert({
+      projectId: process.env.FIREBASE_PROJECT_ID,
+      clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+      privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
+    }),
+  })
 }
 
-export const app = getApps().length > 0 ? getApps()[0] : initializeApp(firebaseAdminConfig) 
+export const getFirebaseAdmin = () => admin 

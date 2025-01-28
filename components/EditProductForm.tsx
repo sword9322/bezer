@@ -8,15 +8,23 @@ import { Label } from '@/components/ui/label'
 import { Product } from './InventoryTable'
 import { fetchBrands, fetchTipologias, fetchRacksForWarehouse } from '@/app/actions'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { faSpinner, faBox, faRuler, faBoxes } from '@fortawesome/free-solid-svg-icons'
+import { faBox, faRuler, faBoxes } from '@fortawesome/free-solid-svg-icons'
 
-export default function EditProductForm({ product, onUpdate, onCancel }: { 
-  product: Product
-  onUpdate: (product: Product) => void
-  onCancel: () => void 
-}) {
-  const { register, handleSubmit, watch, formState: { errors, isSubmitting } } = useForm<Product>({
-    defaultValues: product
+interface EditProductFormProps {
+  product: Product;
+  onUpdate: (product: Product) => void;
+  onCancel: () => void;
+  isLoading?: boolean;
+}
+
+export default function EditProductForm({ product, onUpdate, onCancel, isLoading = false }: EditProductFormProps) {
+  const { register, handleSubmit, watch } = useForm<Product>({
+    defaultValues: {
+      ...product,
+      tipologia: product.tipologia || '',
+      brand: product.brand || '',
+      localidade: product.localidade || ''
+    }
   })
   const [brands, setBrands] = useState<string[]>([])
   const [tipologias, setTipologias] = useState<string[]>([])
@@ -36,9 +44,20 @@ export default function EditProductForm({ product, onUpdate, onCancel }: {
       setBrands(fetchedBrands);
       setTipologias(fetchedTipologias);
       setRacks(fetchedRacks);
+
+      // After loading data, ensure the current values are in the options
+      if (!fetchedBrands.includes(product.brand)) {
+        setBrands(prev => [...prev, product.brand]);
+      }
+      if (!fetchedTipologias.includes(product.tipologia)) {
+        setTipologias(prev => [...prev, product.tipologia]);
+      }
+      if (!fetchedRacks.includes(product.localidade)) {
+        setRacks(prev => [...prev, product.localidade]);
+      }
     };
     loadData();
-  }, [selectedWarehouse]);
+  }, [selectedWarehouse, product.brand, product.tipologia, product.localidade]);
 
   const onSubmit = (data: Product) => {
     if (data.tipologia === 'outro') {
@@ -76,9 +95,6 @@ export default function EditProductForm({ product, onUpdate, onCancel }: {
                   className="w-full rounded-xl border-slate-300 dark:border-slate-600 focus:border-blue-500 focus:ring-blue-500 dark:bg-slate-800 dark:text-white transition-all duration-200"
                   placeholder="REF-0000"
                 />
-                {errors.ref && (
-                  <span className="text-xs text-red-500 mt-1">{errors.ref.message}</span>
-                )}
               </div>
             </div>
 
@@ -91,14 +107,10 @@ export default function EditProductForm({ product, onUpdate, onCancel }: {
                 {...register('brand', { required: 'Marca é obrigatória' })}
                 className="w-full rounded-xl border-slate-300 dark:border-slate-600 focus:border-blue-500 focus:ring-blue-500 dark:bg-slate-800 dark:text-white transition-all duration-200"
               >
-                <option value="">Marca</option>
                 {brands.map((brand) => (
                   <option key={brand} value={brand}>{brand}</option>
                 ))}
               </select>
-              {errors.brand && (
-                <span className="text-xs text-red-500 mt-1">{errors.brand.message}</span>
-              )}
             </div>
           </div>
 
@@ -112,9 +124,6 @@ export default function EditProductForm({ product, onUpdate, onCancel }: {
               className="w-full rounded-xl border-slate-300 dark:border-slate-600 focus:border-blue-500 focus:ring-blue-500 dark:bg-slate-800 dark:text-white transition-all duration-200"
               placeholder="Nome da campanha"
             />
-            {errors.campaign && (
-              <span className="text-xs text-red-500 mt-1">{errors.campaign.message}</span>
-            )}
           </div>
         </div>
 
@@ -136,9 +145,6 @@ export default function EditProductForm({ product, onUpdate, onCancel }: {
                 {...register('altura', { required: 'Altura é obrigatória' })}
                 className="w-full rounded-xl border-slate-300 dark:border-slate-600 focus:border-blue-500 focus:ring-blue-500 dark:bg-slate-800 dark:text-white transition-all duration-200"
               />
-              {errors.altura && (
-                <span className="text-xs text-red-500 mt-1">{errors.altura.message}</span>
-              )}
             </div>
 
             <div className="space-y-1">
@@ -151,9 +157,6 @@ export default function EditProductForm({ product, onUpdate, onCancel }: {
                 {...register('largura', { required: 'Largura é obrigatória' })}
                 className="w-full rounded-xl border-slate-300 dark:border-slate-600 focus:border-blue-500 focus:ring-blue-500 dark:bg-slate-800 dark:text-white transition-all duration-200"
               />
-              {errors.largura && (
-                <span className="text-xs text-red-500 mt-1">{errors.largura.message}</span>
-              )}
             </div>
           </div>
         </div>
@@ -176,9 +179,6 @@ export default function EditProductForm({ product, onUpdate, onCancel }: {
                 {...register('stock', { required: 'Stock é obrigatório' })}
                 className="w-full rounded-xl border-slate-300 dark:border-slate-600 focus:border-blue-500 focus:ring-blue-500 dark:bg-slate-800 dark:text-white transition-all duration-200"
               />
-              {errors.stock && (
-                <span className="text-xs text-red-500 mt-1">{errors.stock.message}</span>
-              )}
             </div>
 
             <div className="space-y-1">
@@ -193,9 +193,6 @@ export default function EditProductForm({ product, onUpdate, onCancel }: {
                 <option value="Warehouse 1">Armazém 1</option>
                 <option value="Warehouse 2">Armazém 2</option>
               </select>
-              {errors.warehouse && (
-                <span className="text-xs text-red-500 mt-1">{errors.warehouse.message}</span>
-              )}
             </div>
 
             <div className="space-y-1">
@@ -207,14 +204,10 @@ export default function EditProductForm({ product, onUpdate, onCancel }: {
                 {...register('localidade', { required: 'Localidade é obrigatória' })}
                 className="w-full rounded-xl border-slate-300 dark:border-slate-600 focus:border-blue-500 focus:ring-blue-500 dark:bg-slate-800 dark:text-white transition-all duration-200"
               >
-                <option value="">Localidade</option>
                 {racks.map((rack) => (
                   <option key={rack} value={rack}>{rack}</option>
                 ))}
               </select>
-              {errors.localidade && (
-                <span className="text-xs text-red-500 mt-1">{errors.localidade.message}</span>
-              )}
             </div>
 
             <div className="space-y-1">
@@ -236,15 +229,11 @@ export default function EditProductForm({ product, onUpdate, onCancel }: {
                   }
                 }}
               >
-                <option value="">Tipologia</option>
                 {tipologias.map((tipologia) => (
                   <option key={tipologia} value={tipologia}>{tipologia}</option>
                 ))}
                 <option value="outro">Outro (com descrição)</option>
               </select>
-              {errors.tipologia && (
-                <span className="text-xs text-red-500 mt-1">{errors.tipologia.message}</span>
-              )}
               
               {customTipologia === 'outro' && (
                 <Input
@@ -260,26 +249,27 @@ export default function EditProductForm({ product, onUpdate, onCancel }: {
         </div>
 
         {/* Action Buttons */}
-        <div className="flex items-center justify-end gap-4 pt-6">
+        <div className="flex justify-end gap-4 mt-6">
           <Button
             type="button"
             onClick={onCancel}
-            className="px-6 py-2.5 border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-xl transition-all duration-200"
+            disabled={isLoading}
+            className="px-4 py-2 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 rounded-xl transition-colors duration-200"
           >
             Cancelar
           </Button>
           <Button
             type="submit"
-            disabled={isSubmitting}
-            className="px-6 py-2.5 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-xl shadow-lg hover:shadow-blue-500/25 transition-all duration-200 transform hover:scale-[1.02]"
+            disabled={isLoading}
+            className="px-4 py-2 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-xl transition-all duration-200 transform hover:scale-105 flex items-center gap-2"
           >
-            {isSubmitting ? (
-              <div className="flex items-center">
-                <FontAwesomeIcon icon={faSpinner} className="animate-spin mr-2" />
-                A guardar...
-              </div>
+            {isLoading ? (
+              <>
+                <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
+                <span>Atualizando...</span>
+              </>
             ) : (
-              'Guardar Alterações'
+              <span>Atualizar</span>
             )}
           </Button>
         </div>

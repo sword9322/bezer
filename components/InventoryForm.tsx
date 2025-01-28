@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useForm } from 'react-hook-form'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
@@ -9,6 +9,7 @@ import { addProduct, fetchBrands, fetchTipologias, fetchRacksForWarehouse } from
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faCloudUpload, faSpinner } from '@fortawesome/free-solid-svg-icons'
 import { toast } from 'sonner'
+import { useAuth } from '@/contexts/AuthContext'
 
 type FormData = {
   image: FileList
@@ -36,6 +37,11 @@ export default function InventoryForm({ selectedWarehouse, onSuccess }: Inventor
   const [tipologias, setTipologias] = useState<string[]>([])
   const [racks, setRacks] = useState<string[]>([])
   const [warehouse, setWarehouse] = useState(selectedWarehouse)
+  const { user, userRole } = useAuth()
+
+  useEffect(() => {
+    setWarehouse(selectedWarehouse)
+  }, [selectedWarehouse])
 
   useEffect(() => {
     const loadData = async () => {
@@ -56,6 +62,16 @@ export default function InventoryForm({ selectedWarehouse, onSuccess }: Inventor
     loadData();
   }, [warehouse]);
 
+  const handleTipologiaChange = useCallback((value: string) => {
+    if (value === 'outro') {
+      setCustomTipologia('outro');
+      setCustomTipologiaInput('');
+    } else {
+      setCustomTipologia(value);
+      setCustomTipologiaInput('');
+    }
+  }, []);
+
   const onSubmit = async (data: FormData) => {
     setIsSubmitting(true)
     try {
@@ -71,7 +87,17 @@ export default function InventoryForm({ selectedWarehouse, onSuccess }: Inventor
       formData.append('tipologia', data.tipologia === 'outro' ? customTipologiaInput : data.tipologia)
       formData.append('notes', data.notes)
 
-      const result = await addProduct(formData, warehouse)
+      if (!user) {
+        throw new Error('User not authenticated')
+      }
+
+      const result = await addProduct(formData, warehouse, {
+        id: user.uid,
+        name: user.displayName || user.email || 'Unknown User',
+        email: user.email || 'No Email',
+        role: userRole || 'user'
+      })
+
       if (result.success) {
         reset()
         setCustomTipologia('')
@@ -83,7 +109,11 @@ export default function InventoryForm({ selectedWarehouse, onSuccess }: Inventor
       }
     } catch (error) {
       console.error('Erro ao adicionar produto:', error)
-      toast.error('Erro ao adicionar produto. Por favor, tente novamente.')
+      if (error instanceof Error && error.message === 'User not authenticated') {
+        toast.error('Por favor, faça login novamente para adicionar produtos.')
+      } else {
+        toast.error('Erro ao adicionar produto. Por favor, tente novamente.')
+      }
     } finally {
       setIsSubmitting(false)
     }
@@ -213,13 +243,7 @@ export default function InventoryForm({ selectedWarehouse, onSuccess }: Inventor
           className="w-full rounded-lg border-slate-300 dark:border-slate-600 focus:border-blue-500 focus:ring-blue-500 dark:bg-slate-800 dark:text-white transition-all duration-200"
           onChange={(e) => {
             const selectedValue = e.target.value;
-            if (selectedValue === 'outro') {
-              setCustomTipologia('outro');
-              setCustomTipologiaInput('');
-            } else {
-              setCustomTipologia(selectedValue);
-              setCustomTipologiaInput('');
-            }
+            handleTipologiaChange(selectedValue);
           }}
         >
           <option value="">Tipologia</option>

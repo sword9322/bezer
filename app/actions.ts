@@ -6,8 +6,8 @@ import { google } from 'googleapis'
 import { Product } from '@/components/InventoryTable'
 import dotenv from 'dotenv'
 import { Readable } from 'stream'
-
-
+//import { logActivity } from '@/lib/activity-logger'
+import { cookies } from 'next/headers'
 
 dotenv.config()
 
@@ -40,7 +40,7 @@ const TIPOLOGIAS_RANGE = 'Tipologias!A:A';
 
 const COLUMN_TITLES = ['Referência', 'Imagem', 'Altura', 'Largura', 'Marca', 'Campanha', 'Data', 'Estoque', 'Localidade', 'Tipologia', 'Notas']
 
-async function addProduct(formData: FormData, warehouse: string) {
+async function addProduct(formData: FormData, warehouse: string, user: { id: string; name: string; email: string; role: string }) {
   try {
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId: SPREADSHEET_ID,
@@ -88,6 +88,58 @@ async function addProduct(formData: FormData, warehouse: string) {
       },
     });
 
+    // Get the token from cookies for activity logging
+    const cookieStore = cookies()
+    const token = cookieStore.get('firebase-token')?.value
+
+    if (token) {
+      try {
+        // Use absolute URL by getting the origin from headers
+        const headers = new Headers()
+        headers.append('Content-Type', 'application/json')
+        headers.append('Authorization', `Bearer ${token}`)
+
+        const response = await fetch('http://localhost:3000/api/logs', {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({
+            actionType: 'added',
+            entityType: 'product',
+            entityId: ref,
+            changes: {
+              before: {},
+              after: {
+                ref,
+                image: imageLink,
+                height,
+                width,
+                brand,
+                campaign,
+                date,
+                stock,
+                localidade,
+                tipologia,
+                notes,
+                warehouse
+              }
+            },
+            userId: user.id,
+            userName: user.name,
+            userEmail: user.email,
+            userRole: user.role,
+          }),
+        })
+
+        if (!response.ok) {
+          console.error('Failed to log activity:', await response.text())
+        }
+      } catch (logError) {
+        console.error('Error logging activity:', logError)
+      }
+    } else {
+      console.error('No authentication token found in cookies')
+    }
+
     return { success: true };
   } catch (error) {
     console.error('Erro ao adicionar produto:', error);
@@ -130,7 +182,7 @@ async function getProducts(page: number, warehouse: string, pageSize: number = 1
   }
 }
 
-async function deleteProduct(ref: string) {
+async function deleteProduct(ref: string, user: { id: string; name: string; email: string; role: string }) {
   try {
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId: SPREADSHEET_ID,
@@ -171,6 +223,55 @@ async function deleteProduct(ref: string) {
           ],
         },
       });
+
+      // Get the token from cookies for activity logging
+      const cookieStore = cookies()
+      const token = cookieStore.get('firebase-token')?.value
+
+      if (token) {
+        try {
+          const response = await fetch('http://localhost:3000/api/logs', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({
+              actionType: 'deleted',
+              entityType: 'product',
+              entityId: ref,
+              changes: {
+                before: {
+                  ref: productToDelete[0],
+                  image: productToDelete[1],
+                  height: productToDelete[2],
+                  width: productToDelete[3],
+                  brand: productToDelete[4],
+                  campaign: productToDelete[5],
+                  date: productToDelete[6],
+                  stock: productToDelete[7],
+                  localidade: productToDelete[8],
+                  tipologia: productToDelete[9],
+                  notes: productToDelete[10] || '',
+                  warehouse: productToDelete[11] === '1' ? 'Warehouse 1' : 'Warehouse 2'
+                },
+                after: null
+              },
+              userId: user.id,
+              userName: user.name,
+              userEmail: user.email,
+              userRole: user.role,
+            }),
+          });
+
+          if (!response.ok) {
+            console.error('Failed to log activity:', await response.text());
+          }
+        } catch (logError) {
+          console.error('Error logging activity:', logError);
+        }
+      }
+
       return { success: true };
     } else {
       return { success: false, error: 'Produto não encontrado' };
@@ -188,7 +289,7 @@ async function updateProduct(updatedProduct: Product) {
     // Get all values to find the correct row
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId: SPREADSHEET_ID,
-      range: 'Inventario!A:K',
+      range: 'Inventario!A:L', // Updated to include column L
     });
 
     const rows = response.data.values;
@@ -198,12 +299,16 @@ async function updateProduct(updatedProduct: Product) {
     const rowIndex = rows.findIndex(row => row[0] === updatedProduct.ref);
     if (rowIndex === -1) throw new Error('Product not found.');
 
+    // Get the original product data for the 'before' state in activity log
+    const originalProduct = rows[rowIndex];
+
     console.log('Found product at row:', rowIndex + 1);
 
     // Update the product data in the specific row
-    const updateRange = `Inventario!A${rowIndex + 1}:K${rowIndex + 1}`;
+    const updateRange = `Inventario!A${rowIndex + 1}:L${rowIndex + 1}`; // Updated to include column L
     console.log('Updating range:', updateRange);
-    console.log('Update values:', [
+
+    const updatedValues = [
       updatedProduct.ref,
       updatedProduct.image,
       updatedProduct.altura,
@@ -216,29 +321,64 @@ async function updateProduct(updatedProduct: Product) {
       updatedProduct.tipologia,
       updatedProduct.notes || '', // Ensure notes is never undefined
       updatedProduct.warehouse === 'Warehouse 1' ? '1' : '2' // Convert warehouse name to number
-    ]);
+    ];
 
     const updateResponse = await sheets.spreadsheets.values.update({
       spreadsheetId: SPREADSHEET_ID,
       range: updateRange,
       valueInputOption: 'USER_ENTERED',
       requestBody: {
-        values: [[
-          updatedProduct.ref,
-          updatedProduct.image,
-          updatedProduct.altura,
-          updatedProduct.largura,
-          updatedProduct.brand,
-          updatedProduct.campaign,
-          updatedProduct.date,
-          updatedProduct.stock,
-          updatedProduct.localidade,
-          updatedProduct.tipologia,
-          updatedProduct.notes || '', // Ensure notes is never undefined
-          updatedProduct.warehouse === 'Warehouse 1' ? '1' : '2' // Convert warehouse name to number
-        ]],
+        values: [updatedValues],
       },
     });
+
+    // Get the token from cookies for activity logging
+    const cookieStore = cookies()
+    const token = cookieStore.get('firebase-token')?.value
+
+    if (token) {
+      try {
+        const response = await fetch('http://localhost:3000/api/logs', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            actionType: 'edited',
+            entityType: 'product',
+            entityId: updatedProduct.ref,
+            changes: {
+              before: {
+                ref: originalProduct[0],
+                image: originalProduct[1],
+                height: originalProduct[2],
+                width: originalProduct[3],
+                brand: originalProduct[4],
+                campaign: originalProduct[5],
+                date: originalProduct[6],
+                stock: originalProduct[7],
+                localidade: originalProduct[8],
+                tipologia: originalProduct[9],
+                notes: originalProduct[10] || '',
+                warehouse: originalProduct[11] === '1' ? 'Warehouse 1' : 'Warehouse 2'
+              },
+              after: updatedProduct
+            },
+            userId: updatedProduct.userId,
+            userName: updatedProduct.userName || 'Unknown User',
+            userEmail: updatedProduct.userEmail || 'No Email',
+            userRole: updatedProduct.userRole || 'user',
+          }),
+        });
+
+        if (!response.ok) {
+          console.error('Failed to log activity:', await response.text());
+        }
+      } catch (logError) {
+        console.error('Error logging activity:', logError);
+      }
+    }
 
     console.log('Update response:', updateResponse.data);
     return { success: true };

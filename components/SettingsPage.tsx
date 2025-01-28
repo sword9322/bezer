@@ -4,6 +4,7 @@ import BrandsTab from '@/components/settings/BrandsTab';
 import TipologiasTab from '@/components/settings/TipologiasTab';
 import RacksTab from '@/components/settings/RacksTab';
 import UsersTab from '@/components/settings/UsersTab';
+import ActivityLogsTab from '@/components/settings/ActivityLogsTab';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter, usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
@@ -111,6 +112,18 @@ export default function SettingsPage() {
               Acesso de Usuários
             </Button>
           )}
+          {isAdmin && (
+            <Button
+              onClick={() => setActiveTab('logs')}
+              className={`${
+                activeTab === 'logs'
+                  ? 'bg-blue-500 text-white hover:bg-blue-600'
+                  : 'bg-white hover:bg-slate-50 text-slate-600 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-300'
+              } transition-colors duration-200`}
+            >
+              Logs de Atividade
+            </Button>
+          )}
         </div>
 
         <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-lg border border-slate-200/50 dark:border-slate-700/50 p-6">
@@ -118,6 +131,7 @@ export default function SettingsPage() {
           {activeTab === 'tipologias' && <TipologiasTab />}
           {activeTab === 'racks' && <RacksTab />}
           {activeTab === 'users' && isAdmin && <UsersTab />}
+          {activeTab === 'logs' && isAdmin && <ActivityLogsTab />}
         </div>
       </div>
     </div>

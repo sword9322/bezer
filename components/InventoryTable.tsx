@@ -31,8 +31,10 @@ import InventoryForm from '@/components/InventoryForm'
 import DeletedProducts from '@/components/DeletedProducts'
 import Link from 'next/link'
 import { Pencil1Icon, TrashIcon, EyeOpenIcon } from '@radix-ui/react-icons'
-import { Select } from '@/components/ui/select'
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select'
 import { Input } from '@/components/ui/input'
+import { toast } from 'sonner'
+import { useAuth } from '@/contexts/AuthContext'
 
 export type Product = {
   ref: string
@@ -45,8 +47,12 @@ export type Product = {
   stock: number
   localidade: string
   tipologia: string
-  notes: string
+  notes?: string
   warehouse: string
+  userId?: string
+  userName?: string
+  userEmail?: string
+  userRole?: string
 }
 
 export default function InventoryTable() {
@@ -66,6 +72,9 @@ export default function InventoryTable() {
   const [brands, setBrands] = useState<string[]>([]);
   const [tipologias, setTipologias] = useState<string[]>([]);
   const [uniqueCampaigns, setUniqueCampaigns] = useState<string[]>([]);
+  const [loadingStates, setLoadingStates] = useState<{ [key: string]: boolean }>({});
+  const [isUpdating, setIsUpdating] = useState(false);
+  const { user, userRole } = useAuth()
 
   const [filters, setFilters] = useState({
     ref: '',
@@ -156,15 +165,32 @@ export default function InventoryTable() {
   }, [products]);
 
   const handleDelete = async (ref: string) => {
-    if (window.confirm('Tem certeza que deseja excluir este produto?')) {
-      const result = await deleteProduct(ref);
-      if (result.success) {
-        setProducts(prev => prev.filter(product => product.ref !== ref));
-      } else {
-        console.error('Erro ao excluir produto:', result.error);
-      }
+    if (loadingStates[ref]) return // Prevent duplicate submissions
+    if (!user) {
+      toast.error('Por favor, faça login para excluir produtos')
+      return
     }
-  };
+
+    try {
+      setLoadingStates(prev => ({ ...prev, [ref]: true }))
+
+      const result = await deleteProduct(ref, {
+        id: user.uid,
+        name: user.displayName || user.email || 'Unknown User',
+        email: user.email || 'No Email',
+        role: userRole || 'user'
+      })
+
+      if (result.success) {
+        toast.success('Produto excluído com sucesso')
+        fetchProducts()
+      } else {
+        toast.error(result.error || 'Erro ao excluir produto')
+      }
+    } finally {
+      setLoadingStates(prev => ({ ...prev, [ref]: false }))
+    }
+  }
 
   const handleEdit = (product: Product) => {
     setEditingProduct(product);
@@ -177,7 +203,7 @@ export default function InventoryTable() {
   };
 
   const handleShowNotes = (product: Product) => {
-    setNotes(product.notes);
+    setNotes(product.notes || '');
     setEditingProduct(product);
     setNotesModalOpen(true);
     setEditingNotes(false);
@@ -191,11 +217,37 @@ export default function InventoryTable() {
   };
 
   const handleUpdate = async (updatedProduct: Product) => {
-    await updateProduct(updatedProduct);
-    setEditingProduct(null);
-    setEditModalOpen(false);
-    fetchProducts();
-  };
+    if (isUpdating) return // Prevent duplicate submissions
+    if (!user) {
+      toast.error('Por favor, faça login para atualizar produtos')
+      return
+    }
+
+    try {
+      setIsUpdating(true)
+
+      // Add user information to the product for logging
+      const productWithUser = {
+        ...updatedProduct,
+        userId: user.uid,
+        userName: user.displayName || user.email || 'Unknown User',
+        userEmail: user.email || 'No Email',
+        userRole: userRole || 'user'
+      }
+
+      const result = await updateProduct(productWithUser)
+      if (result.success) {
+        toast.success('Produto atualizado com sucesso')
+        fetchProducts()
+        setEditingProduct(null)
+        setEditModalOpen(false)
+      } else {
+        toast.error(result.error || 'Erro ao atualizar produto')
+      }
+    } finally {
+      setIsUpdating(false)
+    }
+  }
 
   const handleFilterChange = (e: React.ChangeEvent<HTMLSelectElement | HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -363,14 +415,15 @@ export default function InventoryTable() {
         {/* Table Controls with improved styling */}
         <div className="flex flex-col md:flex-row justify-between items-center gap-4 mb-6">
           <div className="flex items-center gap-4 w-full md:w-auto">
-            <Select
-              value={selectedWarehouse}
-              onChange={(e) => setSelectedWarehouse(e.target.value)}
-              className="bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 shadow-sm transition-all duration-200 hover:border-blue-500 focus:border-blue-500"
-            >
-              <option value="Warehouse 1">Armazem 1</option>
-              <option value="Warehouse 2">Armazem 2</option>
-              <option value="Both">Ambos</option>
+            <Select value={selectedWarehouse} onValueChange={setSelectedWarehouse}>
+              <SelectTrigger className="bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 shadow-sm transition-all duration-200 hover:border-blue-500 focus:border-blue-500">
+                <SelectValue placeholder="Select warehouse" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Warehouse 1">Armazem 1</SelectItem>
+                <SelectItem value="Warehouse 2">Armazem 2</SelectItem>
+                <SelectItem value="Both">Ambos</SelectItem>
+              </SelectContent>
             </Select>
 
             <Button
@@ -518,6 +571,7 @@ export default function InventoryTable() {
                       hover:bg-blue-50/50 dark:hover:bg-blue-900/20 
                       border-b border-slate-200/50 dark:border-slate-700/50
                       transition-all duration-200
+                      ${loadingStates[product.ref] ? 'opacity-50 pointer-events-none' : ''}
                     `}
                   >
                     {visibleColumns.ref && <TableCell className="text-center p-4 text-gray-900 dark:text-gray-100">{product.ref}</TableCell>}
@@ -553,9 +607,14 @@ export default function InventoryTable() {
                           variant="ghost"
                           size="icon"
                           onClick={() => handleEdit(product)}
-                          className="h-9 w-9 p-0 bg-slate-100 dark:bg-slate-700 hover:bg-blue-100 dark:hover:bg-blue-900/30 rounded-xl transition-all duration-200 transform hover:scale-105"
+                          disabled={isUpdating}
+                          className={`h-9 w-9 p-0 bg-slate-100 dark:bg-slate-700 hover:bg-blue-100 dark:hover:bg-blue-900/30 rounded-xl transition-all duration-200 transform hover:scale-105 ${isUpdating ? 'opacity-50 cursor-not-allowed' : ''}`}
                         >
-                          <Pencil1Icon className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                          {isUpdating ? (
+                            <div className="animate-spin rounded-full h-4 w-4 border-2 border-blue-600 border-t-transparent" />
+                          ) : (
+                            <Pencil1Icon className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                          )}
                         </Button>
                         
                         <Button
@@ -571,9 +630,14 @@ export default function InventoryTable() {
                           variant="ghost"
                           size="icon"
                           onClick={() => handleDelete(product.ref)}
-                          className="h-9 w-9 p-0 bg-slate-100 dark:bg-slate-700 hover:bg-blue-100 dark:hover:bg-blue-900/30 rounded-xl transition-all duration-200 transform hover:scale-105 text-red-500 hover:text-red-700"
+                          disabled={loadingStates[product.ref]}
+                          className={`h-9 w-9 p-0 bg-slate-100 dark:bg-slate-700 hover:bg-red-100 dark:hover:bg-red-900/30 rounded-xl transition-all duration-200 transform hover:scale-105 ${loadingStates[product.ref] ? 'opacity-50 cursor-not-allowed' : ''}`}
                         >
-                          <TrashIcon className="h-4 w-4" />
+                          {loadingStates[product.ref] ? (
+                            <div className="animate-spin rounded-full h-4 w-4 border-2 border-red-600 border-t-transparent" />
+                          ) : (
+                            <TrashIcon className="h-4 w-4 text-red-500 hover:text-red-700" />
+                          )}
                         </Button>
                       </div>
                     </TableCell>}
@@ -715,7 +779,12 @@ export default function InventoryTable() {
         <div className="divide-y divide-gray-100">
           <div className="p-6">
             {editingProduct && (
-              <EditProductForm product={editingProduct} onUpdate={handleUpdate} onCancel={handleCloseEditModal} />
+              <EditProductForm 
+                product={editingProduct} 
+                onUpdate={handleUpdate} 
+                onCancel={handleCloseEditModal}
+                isLoading={isUpdating}
+              />
             )}
           </div>
         </div>

@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server';
-import { getAuth } from 'firebase-admin/auth';
-import { app } from '@/lib/firebase-admin';
+import { getFirebaseAdmin } from '@/lib/firebase-admin';
 import { cookies } from 'next/headers';
 
-const auth = getAuth(app);
+const admin = getFirebaseAdmin();
+const auth = admin.auth();
 
 interface TokenVerificationResult {
   isAuthenticated: boolean;
