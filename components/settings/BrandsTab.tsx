@@ -3,99 +3,126 @@
 import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { fetchBrands, addBrand, deleteBrand, downloadBrands } from '@/app/actions'
+import { Label } from '@/components/ui/label'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { faPlus, faDownload, faTrash } from '@fortawesome/free-solid-svg-icons'
+import { faDownload } from '@fortawesome/free-solid-svg-icons'
+import { fetchBrands, addBrand, deleteBrand, downloadBrands } from '@/app/actions'
+import { toast } from 'sonner'
 
 export default function BrandsTab() {
   const [brands, setBrands] = useState<string[]>([])
   const [newBrand, setNewBrand] = useState('')
-  const [loading, setLoading] = useState(false)
+  const [isLoading, setIsLoading] = useState(false)
 
   useEffect(() => {
     loadBrands()
   }, [])
 
   const loadBrands = async () => {
-    const loadedBrands = await fetchBrands()
-    setBrands(loadedBrands)
+    try {
+      const result = await fetchBrands()
+      setBrands(result)
+    } catch {
+      console.error('Error loading brands')
+      toast.error('Ocorreu um erro')
+    }
   }
 
   const handleAddBrand = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!newBrand.trim()) return
 
-    setLoading(true)
+    setIsLoading(true)
     try {
-      await addBrand(newBrand.trim())
+      await addBrand(newBrand)
       await loadBrands()
       setNewBrand('')
-    } catch (error) {
-      console.error('Error adding brand:', error)
+      toast.success('Marca adicionada com sucesso')
+    } catch {
+      toast.error('Erro ao adicionar marca')
+    } finally {
+      setIsLoading(false)
     }
-    setLoading(false)
   }
 
   const handleDeleteBrand = async (brand: string) => {
-    if (window.confirm(`Are you sure you want to delete ${brand}?`)) {
-      try {
-        await deleteBrand(brand)
-        await loadBrands()
-      } catch (error) {
-        console.error('Error deleting brand:', error)
-      }
+    if (!confirm(`Tem certeza que deseja excluir ${brand}?`)) return
+
+    setIsLoading(true)
+    try {
+      await deleteBrand(brand)
+      await loadBrands()
+      toast.success('Marca removida com sucesso')
+    } catch {
+      toast.error('Erro ao remover marca')
+    } finally {
+      setIsLoading(false)
     }
   }
 
-  const handleDownload = async () => {
-    const url = await downloadBrands()
-    window.open(url, '_blank')
+  const handleDownloadBrands = async () => {
+    try {
+      await downloadBrands()
+      toast.success('Download iniciado')
+    } catch {
+      toast.error('Erro ao baixar marcas')
+    }
   }
 
   return (
-    <div className="space-y-8">
-      <div className="flex justify-between items-center">
+    <div className="space-y-6">
+      <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+        <div>
+          <h2 className="text-2xl font-semibold text-gray-900 dark:text-white">Gestão de Marcas</h2>
+          <p className="text-sm text-gray-500 dark:text-gray-400">
+            Adicione ou remova marcas do sistema
+          </p>
+        </div>
         <Button
-          onClick={handleDownload}
-          className="bg-green-600 hover:bg-green-700 text-white rounded-xl px-4 py-2.5 shadow-lg hover:shadow-green-500/30 transition-all duration-300 flex items-center gap-2"
+          onClick={handleDownloadBrands}
+          variant="outline"
+          className="flex items-center gap-2 hover:bg-gray-100 dark:hover:bg-gray-700"
         >
-          <FontAwesomeIcon icon={faDownload} />
-          <span>Exportar Marcas</span>
+          <FontAwesomeIcon icon={faDownload} className="w-4 h-4" />
+          Exportar Marcas
         </Button>
       </div>
 
-      {/* Add Brand Form */}
-      <form onSubmit={handleAddBrand} className="flex gap-4">
-        <Input
-          type="text"
-          value={newBrand}
-          onChange={(e) => setNewBrand(e.target.value)}
-          placeholder="Digite o nome da marca"
-          className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300"
-        />
-        <Button
-          type="submit"
-          disabled={loading || !newBrand.trim()}
-          className="bg-blue-600 hover:bg-blue-700 text-white rounded-xl px-6 py-2.5 shadow-lg hover:shadow-blue-500/30 transition-all duration-300 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+      <form onSubmit={handleAddBrand} className="flex flex-col md:flex-row gap-4">
+        <div className="flex-1">
+          <Label htmlFor="brand">Nova Marca</Label>
+          <Input
+            id="brand"
+            value={newBrand}
+            onChange={(e) => setNewBrand(e.target.value)}
+            placeholder="Digite o nome da marca"
+            className="mt-1.5"
+          />
+        </div>
+        <Button 
+          type="submit" 
+          className="md:mt-8"
+          disabled={isLoading || !newBrand.trim()}
         >
-          <FontAwesomeIcon icon={faPlus} />
-          <span>Adicionar</span>
+          Adicionar
         </Button>
       </form>
 
-      {/* Brands Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {brands.map((brand) => (
           <div
             key={brand}
-            className="group flex items-center justify-between bg-white dark:bg-gray-800/50 rounded-xl border border-gray-200 dark:border-gray-700 p-4 hover:shadow-md hover:bg-gray-50 transition-all duration-300"
+            className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-800/50 rounded-xl border border-gray-200/50 dark:border-gray-700/50"
           >
-            <span className="text-gray-900 dark:text-gray-100 font-medium">{brand}</span>
+            <span className="font-medium text-gray-900 dark:text-white">{brand}</span>
             <Button
+              variant="destructive"
+              size="sm"
               onClick={() => handleDeleteBrand(brand)}
-              className="opacity-0 group-hover:opacity-100 bg-red-100 hover:bg-red-200 text-red-600 hover:text-red-700 rounded-xl p-2 transition-all duration-300"
+              disabled={isLoading}
+              className="hover:bg-red-600/90"
             >
-              <FontAwesomeIcon icon={faTrash} className="h-4 w-4" />
+              Remover
             </Button>
           </div>
         ))}

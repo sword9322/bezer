@@ -7,6 +7,7 @@ import { getDeletedProducts, deleteProductFull, restoreProduct } from '@/app/act
 import { Product } from '@/components/InventoryTable';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faImage, faTrash, faUndo } from '@fortawesome/free-solid-svg-icons';
+import { toast } from 'sonner'
 
 export default function DeletedProducts() {
   const [deletedProducts, setDeletedProducts] = useState<Product[]>([]);
@@ -22,18 +23,34 @@ export default function DeletedProducts() {
 
   const handleDelete = async (ref: string) => {
     if (window.confirm('Tem certeza que deseja excluir este produto permanentemente?')) {
-      const result = await deleteProductFull(ref);
-      if (result.success) {
-        setDeletedProducts(prev => prev.filter(product => product.ref !== ref));
+      try {
+        const result = await deleteProductFull(ref);
+        if (result.success) {
+          setDeletedProducts(prev => prev.filter(product => product.ref !== ref));
+          toast.success('Produto excluído permanentemente');
+        } else {
+          toast.error(result.error || 'Erro ao excluir produto');
+        }
+      } catch (error) {
+        console.error('Erro ao excluir produto:', error);
+        toast.error('Erro ao excluir produto. Por favor, tente novamente.');
       }
     }
   };
 
   const handleRestore = async (ref: string) => {
     if (window.confirm('Deseja restaurar este produto para o inventário?')) {
-      const result = await restoreProduct(ref);
-      if (result.success) {
-        setDeletedProducts(prev => prev.filter(product => product.ref !== ref));
+      try {
+        const result = await restoreProduct(ref);
+        if (result.success) {
+          setDeletedProducts(prev => prev.filter(product => product.ref !== ref));
+          toast.success('Produto restaurado com sucesso');
+        } else {
+          toast.error(result.error || 'Erro ao restaurar produto');
+        }
+      } catch (error) {
+        console.error('Erro ao restaurar produto:', error);
+        toast.error('Erro ao restaurar produto. Por favor, tente novamente.');
       }
     }
   };

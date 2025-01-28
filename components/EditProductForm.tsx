@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Product } from './InventoryTable'
-import { fetchBrands, fetchTipologias } from '@/app/actions'
+import { fetchBrands, fetchTipologias, fetchRacksForWarehouse } from '@/app/actions'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faSpinner, faBox, faRuler, faBoxes } from '@fortawesome/free-solid-svg-icons'
 
@@ -15,25 +15,30 @@ export default function EditProductForm({ product, onUpdate, onCancel }: {
   onUpdate: (product: Product) => void
   onCancel: () => void 
 }) {
-  const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<Product>({
+  const { register, handleSubmit, watch, formState: { errors, isSubmitting } } = useForm<Product>({
     defaultValues: product
   })
   const [brands, setBrands] = useState<string[]>([])
   const [tipologias, setTipologias] = useState<string[]>([])
+  const [racks, setRacks] = useState<string[]>([])
   const [customTipologia, setCustomTipologia] = useState('')
   const [customTipologiaInput, setCustomTipologiaInput] = useState('')
 
+  const selectedWarehouse = watch('warehouse')
+
   useEffect(() => {
     const loadData = async () => {
-      const [fetchedBrands, fetchedTipologias] = await Promise.all([
+      const [fetchedBrands, fetchedTipologias, fetchedRacks] = await Promise.all([
         fetchBrands(),
-        fetchTipologias()
+        fetchTipologias(),
+        fetchRacksForWarehouse(selectedWarehouse)
       ]);
       setBrands(fetchedBrands);
       setTipologias(fetchedTipologias);
+      setRacks(fetchedRacks);
     };
     loadData();
-  }, []);
+  }, [selectedWarehouse]);
 
   const onSubmit = (data: Product) => {
     if (data.tipologia === 'outro') {
@@ -203,8 +208,8 @@ export default function EditProductForm({ product, onUpdate, onCancel }: {
                 className="w-full rounded-xl border-slate-300 dark:border-slate-600 focus:border-blue-500 focus:ring-blue-500 dark:bg-slate-800 dark:text-white transition-all duration-200"
               >
                 <option value="">Localidade</option>
-                {["R1", "N1", "N2", "R2", "N3", "N4", "R3", "N5", "N6", "R4", "N7", "N8", "R5", "N9", "N10", "R6", "N11", "N12", "R7", "N13", "N14", "R8", "N15", "N16", "R9", "N17", "N18", "R10", "N19", "N20", "R11", "N21", "N22", "R12", "N23", "N24", "R13", "N25", "N26", "R14", "N27", "N28", "R15", "N29", "N30", "R16", "N31", "N32", "R17", "N33", "N34", "R18", "N35", "N36"].map((localidade) => (
-                  <option key={localidade} value={localidade}>{localidade}</option>
+                {racks.map((rack) => (
+                  <option key={rack} value={rack}>{rack}</option>
                 ))}
               </select>
               {errors.localidade && (

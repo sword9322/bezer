@@ -569,7 +569,7 @@ export const fetchTipologias = async () => {
     });
     return response.data.values?.flat() || [];
   } catch (error) {
-    console.error('Error fetching tipologias:', error);
+    console.error('Erro ao buscar tipologias:', error);
     return [];
   }
 };
@@ -596,7 +596,7 @@ export const deleteTipologia = async (tipologia: string) => {
     );
 
     if (!tipologiasSheet?.properties?.sheetId) {
-      throw new Error('Tipologias sheet not found');
+      throw new Error('Planilha de tipologias não encontrada');
     }
 
     const response = await sheets.spreadsheets.values.get({
@@ -605,10 +605,10 @@ export const deleteTipologia = async (tipologia: string) => {
     });
 
     const rows = response.data.values;
-    if (!rows) throw new Error('No data found.');
+    if (!rows) throw new Error('Nenhum dado encontrado.');
 
     const rowIndex = rows.findIndex(row => row[0] === tipologia);
-    if (rowIndex === -1) throw new Error('Tipologia not found.');
+    if (rowIndex === -1) throw new Error('Tipologia não encontrada.');
 
     await sheets.spreadsheets.batchUpdate({
       spreadsheetId: SPREADSHEET_ID,
@@ -628,8 +628,8 @@ export const deleteTipologia = async (tipologia: string) => {
 
     return { success: true };
   } catch (error) {
-    console.error('Error removing tipologia:', error);
-    return { success: false, error: 'Failed to remove tipologia' };
+    console.error('Erro ao remover tipologia:', error);
+    return { success: false, error: 'Falha ao remover tipologia' };
   }
 };
 
@@ -672,6 +672,28 @@ export const downloadTipologias = async () => {
 export async function downloadPDF() {
   const url = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/export?format=pdf&size=A4&portrait=true&fitw=true&gridlines=false`;
   return url;
+}
+
+export async function fetchRacksForWarehouse(warehouse: string) {
+  try {
+    const response = await sheets.spreadsheets.values.get({
+      spreadsheetId: SPREADSHEET_ID,
+      range: 'Racks!A2:B', // Updated range to match new structure
+    });
+
+    const rows = response.data.values;
+    if (!rows) return [];
+
+    const warehouseNumber = warehouse === 'Warehouse 1' ? '1' : '2';
+    const racks = rows
+      .filter(row => row[1] === warehouseNumber) // Filter by warehouse number in second column
+      .map(row => row[0]); // Get only the rack IDs
+
+    return racks;
+  } catch (error) {
+    console.error('Error fetching racks:', error);
+    return [];
+  }
 }
 
 

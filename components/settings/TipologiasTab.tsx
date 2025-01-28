@@ -3,99 +3,126 @@
 import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { fetchTipologias, addTipologia, deleteTipologia, downloadTipologias } from '@/app/actions'
+import { Label } from '@/components/ui/label'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { faPlus, faDownload, faTrash } from '@fortawesome/free-solid-svg-icons'
+import { faDownload } from '@fortawesome/free-solid-svg-icons'
+import { fetchTipologias, addTipologia, deleteTipologia, downloadTipologias } from '@/app/actions'
+import { toast } from 'sonner'
 
 export default function TipologiasTab() {
   const [tipologias, setTipologias] = useState<string[]>([])
   const [newTipologia, setNewTipologia] = useState('')
-  const [loading, setLoading] = useState(false)
+  const [isLoading, setIsLoading] = useState(false)
 
   useEffect(() => {
     loadTipologias()
   }, [])
 
   const loadTipologias = async () => {
-    const loadedTipologias = await fetchTipologias()
-    setTipologias(loadedTipologias)
+    try {
+      const result = await fetchTipologias()
+      setTipologias(result)
+    } catch {
+      console.error('Error loading tipologias')
+      toast.error('Ocorreu um erro')
+    }
   }
 
   const handleAddTipologia = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!newTipologia.trim()) return
 
-    setLoading(true)
+    setIsLoading(true)
     try {
-      await addTipologia(newTipologia.trim())
+      await addTipologia(newTipologia)
       await loadTipologias()
       setNewTipologia('')
-    } catch (error) {
-      console.error('Error adding tipologia:', error)
+      toast.success('Tipologia adicionada com sucesso')
+    } catch {
+      toast.error('Erro ao adicionar tipologia')
+    } finally {
+      setIsLoading(false)
     }
-    setLoading(false)
   }
 
   const handleDeleteTipologia = async (tipologia: string) => {
-    if (window.confirm(`Are you sure you want to delete ${tipologia}?`)) {
-      try {
-        await deleteTipologia(tipologia)
-        await loadTipologias()
-      } catch (error) {
-        console.error('Error deleting tipologia:', error)
-      }
+    if (!confirm(`Tem certeza que deseja excluir ${tipologia}?`)) return
+
+    setIsLoading(true)
+    try {
+      await deleteTipologia(tipologia)
+      await loadTipologias()
+      toast.success('Tipologia removida com sucesso')
+    } catch {
+      toast.error('Erro ao remover tipologia')
+    } finally {
+      setIsLoading(false)
     }
   }
 
-  const handleDownload = async () => {
-    const url = await downloadTipologias()
-    window.open(url, '_blank')
+  const handleDownloadTipologias = async () => {
+    try {
+      await downloadTipologias()
+      toast.success('Download iniciado')
+    } catch {
+      toast.error('Erro ao baixar tipologias')
+    }
   }
 
   return (
-    <div className="space-y-8">
-      <div className="flex justify-between items-center">
+    <div className="space-y-6">
+      <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+        <div>
+          <h2 className="text-2xl font-semibold text-gray-900 dark:text-white">Gestão de Tipologias</h2>
+          <p className="text-sm text-gray-500 dark:text-gray-400">
+            Adicione ou remova tipologias do sistema
+          </p>
+        </div>
         <Button
-          onClick={handleDownload}
-          className="bg-green-600 hover:bg-green-700 text-white rounded-xl px-4 py-2.5 shadow-lg hover:shadow-green-500/30 transition-all duration-300 flex items-center gap-2"
+          onClick={handleDownloadTipologias}
+          variant="outline"
+          className="flex items-center gap-2 hover:bg-gray-100 dark:hover:bg-gray-700"
         >
-          <FontAwesomeIcon icon={faDownload} />
-          <span>Exportar Tipologias</span>
+          <FontAwesomeIcon icon={faDownload} className="w-4 h-4" />
+          Exportar Tipologias
         </Button>
       </div>
 
-      {/* Add Tipologia Form */}
-      <form onSubmit={handleAddTipologia} className="flex gap-4">
-        <Input
-          type="text"
-          value={newTipologia}
-          onChange={(e) => setNewTipologia(e.target.value)}
-          placeholder="Digite o nome da tipologia"
-          className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300"
-        />
-        <Button
-          type="submit"
-          disabled={loading || !newTipologia.trim()}
-          className="bg-blue-600 hover:bg-blue-700 text-white rounded-xl px-6 py-2.5 shadow-lg hover:shadow-blue-500/30 transition-all duration-300 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+      <form onSubmit={handleAddTipologia} className="flex flex-col md:flex-row gap-4">
+        <div className="flex-1">
+          <Label htmlFor="tipologia">Nova Tipologia</Label>
+          <Input
+            id="tipologia"
+            value={newTipologia}
+            onChange={(e) => setNewTipologia(e.target.value)}
+            placeholder="Digite o nome da tipologia"
+            className="mt-1.5"
+          />
+        </div>
+        <Button 
+          type="submit" 
+          className="md:mt-8"
+          disabled={isLoading || !newTipologia.trim()}
         >
-          <FontAwesomeIcon icon={faPlus} />
-          <span>Adicionar</span>
+          Adicionar
         </Button>
       </form>
 
-      {/* Tipologias Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {tipologias.map((tipologia) => (
           <div
             key={tipologia}
-            className="group flex items-center justify-between bg-white dark:bg-gray-800/50 rounded-xl border border-gray-200 dark:border-gray-700 p-4 hover:shadow-md hover:bg-gray-50 transition-all duration-300"
+            className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-800/50 rounded-xl border border-gray-200/50 dark:border-gray-700/50"
           >
-            <span className="text-gray-900 dark:text-gray-100 font-medium">{tipologia}</span>
+            <span className="font-medium text-gray-900 dark:text-white">{tipologia}</span>
             <Button
+              variant="destructive"
+              size="sm"
               onClick={() => handleDeleteTipologia(tipologia)}
-              className="opacity-0 group-hover:opacity-100 bg-red-100 hover:bg-red-200 text-red-600 hover:text-red-700 rounded-xl p-2 transition-all duration-300"
+              disabled={isLoading}
+              className="hover:bg-red-600/90"
             >
-              <FontAwesomeIcon icon={faTrash} className="h-4 w-4" />
+              Remover
             </Button>
           </div>
         ))}

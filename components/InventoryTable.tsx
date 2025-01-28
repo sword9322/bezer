@@ -6,19 +6,33 @@ import { Button } from '@/components/ui/button'
 import { getProducts, deleteProduct, updateProduct, downloadSheet, downloadPDF } from '@/app/actions'
 import EditProductForm from '@/components/EditProductForm'
 import Modal from '@/components/modals'
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faEdit, faImage, faBoxes, faBoxOpen, faPlus, faTrashRestore, faFilter, faChevronLeft, faChevronRight, faTimes, faCog, faSyncAlt, faColumns, faFilePdf, faFileExcel } from '@fortawesome/free-solid-svg-icons';
-import Image from 'next/image';
-import GoogleDriveIcon from '@/components/icons/google-drive.png';
-import GoogleSheetsIcon from '@/components/icons/sheets.png';
-import InventoryForm from '@/components/InventoryForm';
-import DeletedProducts from '@/components/DeletedProducts';
-import Link from 'next/link';
-import { Pencil1Icon, TrashIcon, EyeOpenIcon } from '@radix-ui/react-icons';
-import { Select } from '@/components/ui/select';
-import { Input } from '@/components/ui/input';
-
-
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
+import { 
+  faPlus,
+  faEdit, 
+  faBoxes,
+  faBoxOpen,
+  faTrashRestore,
+  faCog,
+  faSyncAlt,
+  faColumns,
+  faFilter,
+  faFileExcel,
+  faFilePdf,
+  faImage,
+  faChevronLeft,
+  faChevronRight,
+  faTimes
+} from '@fortawesome/free-solid-svg-icons'
+import Image from 'next/image'
+import GoogleDriveIcon from '@/components/icons/google-drive.png'
+import GoogleSheetsIcon from '@/components/icons/sheets.png'
+import InventoryForm from '@/components/InventoryForm'
+import DeletedProducts from '@/components/DeletedProducts'
+import Link from 'next/link'
+import { Pencil1Icon, TrashIcon, EyeOpenIcon } from '@radix-ui/react-icons'
+import { Select } from '@/components/ui/select'
+import { Input } from '@/components/ui/input'
 
 export type Product = {
   ref: string
@@ -223,18 +237,9 @@ export default function InventoryTable() {
       {/* Abstract background pattern */}
       <div className="absolute inset-0 bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] [background-size:16px_16px] opacity-50"></div>
 
-      {/* Main Header */}
-      <header className="relative z-10 bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm border-b border-slate-200 dark:border-slate-800">
-        <div className="container mx-auto px-4 py-4">
-          <h1 className="text-4xl font-bold text-center bg-gradient-to-r from-blue-600 to-blue-800 dark:from-blue-400 dark:to-blue-600 bg-clip-text text-transparent font-display">
-            BEZE
-          </h1>
-        </div>
-      </header>
-
-      <div className="container mx-auto px-4 py-8 max-w-7xl relative z-10">
+      <div className="container mx-auto px-4 py-1 max-w-7xl relative z-10">
         {/* Breadcrumb */}
-        <nav className="mb-8">
+        <nav className="mb-4">
           <ol className="flex items-center space-x-2 text-sm text-slate-600 dark:text-slate-400">
             <li><Link href="/" className="hover:text-blue-600 dark:hover:text-blue-400">Home</Link></li>
             <li><span className="px-2">/</span></li>
@@ -457,7 +462,7 @@ export default function InventoryTable() {
                       REF
                     </TableHead>
                   )}
-                  {visibleColumns.image && <TableHead className="text-center p-4 font-semibold text-gray-900 dark:text-gray-100">Image</TableHead>}
+                  {visibleColumns.image && <TableHead className="text-center p-4 font-semibold text-gray-900 dark:text-gray-100">Imagem</TableHead>}
                   {visibleColumns.height && <TableHead className="text-center p-4 font-semibold text-gray-900 dark:text-gray-100">Altura</TableHead>}
                   {visibleColumns.width && <TableHead className="text-center p-4 font-semibold text-gray-900 dark:text-gray-100">Largura</TableHead>}
                   {visibleColumns.brand && <TableHead className="text-center p-4 font-semibold text-gray-900 dark:text-gray-100">Marca</TableHead>}
@@ -466,7 +471,7 @@ export default function InventoryTable() {
                   {visibleColumns.stock && <TableHead className="text-center p-4 font-semibold text-gray-900 dark:text-gray-100">Stock</TableHead>}
                   {visibleColumns.localidade && <TableHead className="text-center p-4 font-semibold text-gray-900 dark:text-gray-100">Localização</TableHead>}
                   {visibleColumns.tipologia && <TableHead className="text-center p-4 font-semibold text-gray-900 dark:text-gray-100">Tipo</TableHead>}
-                  {visibleColumns.actions && <TableHead className="text-center p-4 font-semibold text-gray-900 dark:text-gray-100">Actions</TableHead>}
+                  {visibleColumns.actions && <TableHead className="text-center p-4 font-semibold text-gray-900 dark:text-gray-100">Ações</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -560,17 +565,17 @@ export default function InventoryTable() {
           className="flex items-center gap-2 bg-white/80 backdrop-blur-sm dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl px-4 py-2.5 transition-all duration-300 transform hover:scale-105"
         >
           <FontAwesomeIcon icon={faChevronLeft} />
-          Previous
+          Anterior
         </Button>
         <span className="text-sm font-medium text-gray-600 dark:text-gray-300">
-          Page {currentPage} of {totalPages}
+          Página {currentPage} de {totalPages}
         </span>
         <Button 
           onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))} 
           disabled={currentPage === totalPages}
           className="flex items-center gap-2 bg-white/80 backdrop-blur-sm dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl px-4 py-2.5 transition-all duration-300 transform hover:scale-105"
         >
-          Next
+          Próximo
           <FontAwesomeIcon icon={faChevronRight} />
         </Button>
       </div>
@@ -579,7 +584,7 @@ export default function InventoryTable() {
       <Modal isOpen={notesModalOpen} onClose={handleCloseNotesModal}>
         <div className="divide-y divide-gray-100">
           <div className="px-6 py-4 flex justify-between items-center bg-gray-50">
-            <h2 className="text-xl font-semibold text-gray-800">Notes</h2>
+            <h2 className="text-xl font-semibold text-gray-800">Notas</h2>
             {!editingNotes && (
               <Button 
                 onClick={() => setEditingNotes(true)}
@@ -596,7 +601,7 @@ export default function InventoryTable() {
                 value={notes || ''}
                 onChange={(e) => setNotes(e.target.value)}
                 rows={4}
-                placeholder="Add your notes here..."
+                placeholder="Adicione suas notas aqui..."
               />
             ) : (
               <p className="w-full p-4 bg-gray-50 rounded-xl min-h-[100px] text-gray-700">
@@ -610,13 +615,13 @@ export default function InventoryTable() {
                     onClick={handleUpdateNotes}
                     className="bg-green-500 hover:bg-green-600 text-white transition-colors px-6"
                   >
-                    Save
+                    Salvar
                   </Button>
                   <Button 
                     onClick={handleCloseNotesModal}
                     className="bg-gray-500 hover:bg-gray-600 text-white transition-colors px-6"
                   >
-                    Cancel
+                    Cancelar
                   </Button>
                 </>
               ) : (
@@ -624,7 +629,7 @@ export default function InventoryTable() {
                   onClick={handleCloseNotesModal}
                   className="bg-gray-500 hover:bg-gray-600 text-white transition-colors px-6"
                 >
-                  Close
+                  Fechar
                 </Button>
               )}
             </div>

@@ -5,9 +5,10 @@ import { useForm } from 'react-hook-form'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
-import { addProduct, fetchBrands, fetchTipologias } from '@/app/actions'
+import { addProduct, fetchBrands, fetchTipologias, fetchRacksForWarehouse } from '@/app/actions'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faCloudUpload, faSpinner } from '@fortawesome/free-solid-svg-icons'
+import { toast } from 'sonner'
 
 type FormData = {
   image: FileList
@@ -33,19 +34,27 @@ export default function InventoryForm({ selectedWarehouse, onSuccess }: Inventor
   const [customTipologiaInput, setCustomTipologiaInput] = useState('')
   const [brands, setBrands] = useState<string[]>([])
   const [tipologias, setTipologias] = useState<string[]>([])
+  const [racks, setRacks] = useState<string[]>([])
   const [warehouse, setWarehouse] = useState(selectedWarehouse)
 
   useEffect(() => {
     const loadData = async () => {
-      const [fetchedBrands, fetchedTipologias] = await Promise.all([
-        fetchBrands(),
-        fetchTipologias()
-      ]);
-      setBrands(fetchedBrands);
-      setTipologias(fetchedTipologias);
+      try {
+        const [fetchedBrands, fetchedTipologias, fetchedRacks] = await Promise.all([
+          fetchBrands(),
+          fetchTipologias(),
+          fetchRacksForWarehouse(warehouse)
+        ]);
+        setBrands(fetchedBrands);
+        setTipologias(fetchedTipologias);
+        setRacks(fetchedRacks);
+      } catch (error) {
+        console.error('Erro ao carregar dados:', error);
+        toast.error('Erro ao carregar dados. Por favor, recarregue a página.');
+      }
     };
     loadData();
-  }, []);
+  }, [warehouse]);
 
   const onSubmit = async (data: FormData) => {
     setIsSubmitting(true)
@@ -62,14 +71,19 @@ export default function InventoryForm({ selectedWarehouse, onSuccess }: Inventor
       formData.append('tipologia', data.tipologia === 'outro' ? customTipologiaInput : data.tipologia)
       formData.append('notes', data.notes)
 
-      await addProduct(formData, warehouse)
-      reset()
-      setCustomTipologia('')
-      setCustomTipologiaInput('')
-      onSuccess()
+      const result = await addProduct(formData, warehouse)
+      if (result.success) {
+        reset()
+        setCustomTipologia('')
+        setCustomTipologiaInput('')
+        toast.success('Produto adicionado com sucesso')
+        onSuccess()
+      } else {
+        toast.error(result.error || 'Erro ao adicionar produto')
+      }
     } catch (error) {
       console.error('Erro ao adicionar produto:', error)
-      alert('Erro ao adicionar produto. Por favor, tente novamente.')
+      toast.error('Erro ao adicionar produto. Por favor, tente novamente.')
     } finally {
       setIsSubmitting(false)
     }
@@ -80,7 +94,7 @@ export default function InventoryForm({ selectedWarehouse, onSuccess }: Inventor
       {/* Image Upload Section */}
       <div className="group relative">
         <Label htmlFor="image" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-          Product Image
+          Imagem do Produto
         </Label>
         <div className="border-2 border-dashed border-slate-300 dark:border-slate-600 rounded-xl hover:border-blue-500 dark:hover:border-blue-400 transition-colors p-8">
           <input
@@ -95,10 +109,10 @@ export default function InventoryForm({ selectedWarehouse, onSuccess }: Inventor
               className="text-3xl text-slate-400 dark:text-slate-500 mb-3 group-hover:text-blue-500 dark:group-hover:text-blue-400 transition-colors" 
             />
             <p className="text-sm text-slate-600 dark:text-slate-400">
-              Drag and drop an image here, or click to select
+              Arraste e solte uma imagem aqui, ou clique para selecionar
             </p>
             <p className="text-xs text-slate-500 dark:text-slate-500 mt-2">
-              Supported formats: JPG, PNG, GIF
+              Formatos suportados: JPG, PNG, GIF
             </p>
           </div>
         </div>
@@ -170,8 +184,8 @@ export default function InventoryForm({ selectedWarehouse, onSuccess }: Inventor
             className="w-full rounded-lg border-slate-300 dark:border-slate-600 focus:border-blue-500 focus:ring-blue-500 dark:bg-slate-800 dark:text-white transition-all duration-200"
           >
             <option value="">Localidade</option>
-            {["R1", "N1", "N2", "R2", "N3", "N4", "R3", "N5", "N6", "R4", "N7", "N8", "R5", "N9", "N10", "R6", "N11", "N12", "R7", "N13", "N14", "R8", "N15", "N16", "R9", "N17", "N18", "R10", "N19", "N20", "R11", "N21", "N22", "R12", "N23", "N24", "R13", "N25", "N26", "R14", "N27", "N28", "R15", "N29", "N30", "R16", "N31", "N32", "R17", "N33", "N34", "R18", "N35", "N36"].map((localidade) => (
-              <option key={localidade} value={localidade}>{localidade}</option>
+            {racks.map((rack) => (
+              <option key={rack} value={rack}>{rack}</option>
             ))}
           </select>
         </div>
@@ -212,12 +226,12 @@ export default function InventoryForm({ selectedWarehouse, onSuccess }: Inventor
           {tipologias.map((tipologia) => (
             <option key={tipologia} value={tipologia}>{tipologia}</option>
           ))}
-          <option value="outro">Outro (with description)</option>
+          <option value="outro">Outra (com descrição)</option>
         </select>
         {customTipologia === 'outro' && (
           <Input
             type="text"
-            placeholder="Enter tipologia description"
+            placeholder="Digite a descrição da tipologia"
             value={customTipologiaInput}
             onChange={(e) => setCustomTipologiaInput(e.target.value)}
             className="mt-2 w-full rounded-lg border-slate-300 dark:border-slate-600 focus:border-blue-500 focus:ring-blue-500 dark:bg-slate-800 dark:text-white transition-all duration-200"
@@ -237,7 +251,6 @@ export default function InventoryForm({ selectedWarehouse, onSuccess }: Inventor
         >
           <option value="Warehouse 1">Armazém 1</option>
           <option value="Warehouse 2">Armazém 2</option>
-          <option value="Both">Ambos</option>
         </select>
       </div>
 

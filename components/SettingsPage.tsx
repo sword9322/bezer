@@ -1,305 +1,91 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { fetchBrands, addBrand, deleteBrand, fetchTipologias, addTipologia, deleteTipologia, downloadBrands, downloadTipologias } from '@/app/actions';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faBoxes, faUsers, faDatabase, faCloud, faHome, faList, faDownload } from '@fortawesome/free-solid-svg-icons';
-import Link from 'next/link';
-import { Label } from "@/components/ui/label";
+import BrandsTab from '@/components/settings/BrandsTab';
+import TipologiasTab from '@/components/settings/TipologiasTab';
+import RacksTab from '@/components/settings/RacksTab';
+import { useAuth } from '@/contexts/AuthContext';
+import { useRouter, usePathname } from 'next/navigation';
+import { useEffect, useState } from 'react';
 
 export default function SettingsPage() {
-  const [brands, setBrands] = useState<string[]>([]);
-  const [newBrand, setNewBrand] = useState('');
-  const [tipologias, setTipologias] = useState<string[]>([]);
-  const [newTipologia, setNewTipologia] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
+  const { user, loading: authLoading } = useAuth();
+  const router = useRouter();
+  const pathname = usePathname();
+  const [pageLoading, setPageLoading] = useState(true);
 
   useEffect(() => {
-    loadBrands();
-    loadTipologias();
-  }, []);
+    console.log('Current path:', pathname);
+    console.log('Auth state:', { user, authLoading });
 
-  const loadBrands = async () => {
-    const fetchedBrands = await fetchBrands();
-    setBrands(fetchedBrands);
-  };
-
-  const loadTipologias = async () => {
-    const fetchedTipologias = await fetchTipologias();
-    setTipologias(fetchedTipologias);
-  };
-
-  const handleAddBrand = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newBrand.trim()) return;
-
-    setIsLoading(true);
-    try {
-      await addBrand(newBrand);
-      setNewBrand('');
-      await loadBrands();
-    } catch (error) {
-      console.error('Error adding brand:', error);
-    } finally {
-      setIsLoading(false);
+    if (!authLoading && !user) {
+      console.log('No user found, redirecting to login');
+      router.replace('/login');
+      return;
     }
-  };
 
-  const handleAddTipologia = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newTipologia.trim()) return;
+    const timer = setTimeout(() => {
+      setPageLoading(false);
+    }, 500);
 
-    setIsLoading(true);
-    try {
-      await addTipologia(newTipologia);
-      setNewTipologia('');
-      await loadTipologias();
-    } catch (error) {
-      console.error('Error adding tipologia:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+    return () => clearTimeout(timer);
+  }, [user, authLoading, router, pathname]);
 
-  const handleDeleteBrand = async (brand: string) => {
-    if (!confirm(`Are you sure you want to delete ${brand}?`)) return;
-
-    setIsLoading(true);
-    try {
-      await deleteBrand(brand);
-      await loadBrands();
-    } catch (error) {
-      console.error('Error deleting brand:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleDeleteTipologia = async (tipologia: string) => {
-    if (!confirm(`Are you sure you want to delete ${tipologia}?`)) return;
-
-    setIsLoading(true);
-    try {
-      await deleteTipologia(tipologia);
-      await loadTipologias();
-    } catch (error) {
-      console.error('Error deleting tipologia:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleDownloadBrands = async () => {
-    const url = await downloadBrands();
-    window.open(url, '_blank');
-  };
-
-  const handleDownloadTipologias = async () => {
-    const url = await downloadTipologias();
-    window.open(url, '_blank');
-  };
-
-  return (
-    <div className="container mx-auto p-6 max-w-7xl mt-10">
-      <div className="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
-        <h1 className="text-3xl font-bold">Settings</h1>
-        <Link href="/">
-          <Button className="bg-gray-500 hover:bg-gray-600">
-            <FontAwesomeIcon icon={faHome} />
-          </Button>
-        </Link>
+  // Show loading state while auth is initializing or page is loading
+  if (authLoading || pageLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto"></div>
+          <p className="mt-4 text-slate-600 dark:text-slate-400">Carregando configurações...</p>
+          <p className="mt-2 text-sm text-slate-500">{authLoading ? 'Verificando autenticação...' : 'Preparando página...'}</p>
+        </div>
       </div>
-      
-      <Tabs defaultValue="brands" className="space-y-6">
-        <TabsList className="grid grid-cols-2 md:grid-cols-5 gap-4 bg-gray-100 p-2 rounded-lg">
-          <TabsTrigger value="brands" className="flex items-center gap-2">
-            <FontAwesomeIcon icon={faBoxes} />
-            Marcas
-          </TabsTrigger>
-          <TabsTrigger value="tipologias" className="flex items-center gap-2">
-            <FontAwesomeIcon icon={faList} />
-            Tipologias
-          </TabsTrigger>
-          <TabsTrigger value="users" className="flex items-center gap-2">
-            <FontAwesomeIcon icon={faUsers} />
-            User Access
-          </TabsTrigger>
-          <TabsTrigger value="database" className="flex items-center gap-2">
-            <FontAwesomeIcon icon={faDatabase} />
-            Database
-          </TabsTrigger>
-          <TabsTrigger value="backup" className="flex items-center gap-2">
-            <FontAwesomeIcon icon={faCloud} />
-            Backup & Restore
-          </TabsTrigger>
-        </TabsList>
+    );
+  }
 
-        <TabsContent value="brands">
-          <Card>
-            <CardHeader className="flex flex-col md:flex-row items-center justify-between gap-4">
-              <div>
-                <CardTitle>Gestão de Marcas</CardTitle>
-                <CardDescription>
-                  Adicione ou remova marcas do sistema.
-                </CardDescription>
-              </div>
-              <Button 
-                onClick={handleDownloadBrands}
-                variant="outline"
-                className="flex items-center gap-2"
-              >
-                <FontAwesomeIcon icon={faDownload} />
-                Exportar Marcas
-              </Button>
-            </CardHeader>
-            <CardContent>
-              <form onSubmit={handleAddBrand} className="flex flex-col md:flex-row gap-4 mb-6">
-                <div className="flex-1">
-                  <Label htmlFor="brand">Nova Marca</Label>
-                  <Input
-                    id="brand"
-                    value={newBrand}
-                    onChange={(e) => setNewBrand(e.target.value)}
-                    placeholder="Digite o nome da marca"
-                    className="mt-1"
-                  />
-                </div>
-                <Button type="submit" className="mt-7 md:mt-0" disabled={isLoading}>
-                  Adicionar
-                </Button>
-              </form>
+  // If no user after loading, show error
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-slate-600 dark:text-slate-400">Acesso não autorizado</p>
+          <button
+            onClick={() => router.push('/login')}
+            className="mt-4 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+          >
+            Voltar ao Login
+          </button>
+        </div>
+      </div>
+    );
+  }
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {brands.map((brand) => (
-                  <div
-                    key={brand}
-                    className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
-                  >
-                    <span>{brand}</span>
-                    <Button
-                      variant="destructive"
-                      size="sm"
-                      onClick={() => handleDeleteBrand(brand)}
-                      disabled={isLoading}
-                    >
-                      Remover
-                    </Button>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
+  // Show settings page content
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 p-6">
+      <div className="max-w-7xl mx-auto">
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">Configurações</h1>
+        <Tabs defaultValue="brands" className="w-full">
+          <TabsList className="grid w-full grid-cols-3 lg:w-[400px]">
+            <TabsTrigger value="brands">Marcas</TabsTrigger>
+            <TabsTrigger value="tipologias">Tipologias</TabsTrigger>
+            <TabsTrigger value="racks">Racks</TabsTrigger>
+          </TabsList>
 
-        <TabsContent value="tipologias">
-          <Card>
-            <CardHeader className="flex flex-col md:flex-row items-center justify-between gap-4">
-              <div>
-                <CardTitle>Gestão de Tipologias</CardTitle>
-                <CardDescription>
-                  Adicione ou remova tipologias do sistema.
-                </CardDescription>
-              </div>
-              <Button 
-                onClick={handleDownloadTipologias}
-                variant="outline"
-                className="flex items-center gap-2"
-              >
-                <FontAwesomeIcon icon={faDownload} />
-                Exportar Tipologias
-              </Button>
-            </CardHeader>
-            <CardContent>
-              <form onSubmit={handleAddTipologia} className="flex flex-col md:flex-row gap-4 mb-6">
-                <div className="flex-1">
-                  <Label htmlFor="tipologia">Nova Tipologia</Label>
-                  <Input
-                    id="tipologia"
-                    value={newTipologia}
-                    onChange={(e) => setNewTipologia(e.target.value)}
-                    placeholder="Digite o nome da tipologia"
-                    className="mt-1"
-                  />
-                </div>
-                <Button type="submit" className="mt-7 md:mt-0" disabled={isLoading}>
-                  Adicionar
-                </Button>
-              </form>
+          <TabsContent value="brands" className="mt-6">
+            <BrandsTab />
+          </TabsContent>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {tipologias.map((tipologia) => (
-                  <div
-                    key={tipologia}
-                    className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
-                  >
-                    <span>{tipologia}</span>
-                    <Button
-                      variant="destructive"
-                      size="sm"
-                      onClick={() => handleDeleteTipologia(tipologia)}
-                      disabled={isLoading}
-                    >
-                      Remover
-                    </Button>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
+          <TabsContent value="tipologias" className="mt-6">
+            <TipologiasTab />
+          </TabsContent>
 
-        <TabsContent value="users">
-          <Card>
-            <CardHeader>
-              <CardTitle>User Access Management</CardTitle>
-              <CardDescription>
-                Manage user permissions and access levels.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="text-gray-500 italic">
-                User management features coming soon...
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="database">
-          <Card>
-            <CardHeader>
-              <CardTitle>Database Settings</CardTitle>
-              <CardDescription>
-                Configure database connections and maintenance.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="text-gray-500 italic">
-                Database management features coming soon...
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="backup">
-          <Card>
-            <CardHeader>
-              <CardTitle>Backup & Restore</CardTitle>
-              <CardDescription>
-                Manage system backups and restore points.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="text-gray-500 italic">
-                Backup and restore features coming soon...
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+          <TabsContent value="racks" className="mt-6">
+            <RacksTab />
+          </TabsContent>
+        </Tabs>
+      </div>
     </div>
   );
 } 
