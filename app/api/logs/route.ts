@@ -16,6 +16,21 @@ const auth = new google.auth.GoogleAuth({
   scopes: ['https://www.googleapis.com/auth/spreadsheets'],
 })
 
+// Add this at the top of the file
+const requiredEnvVars = [
+  'GOOGLE_PRIVATE_KEY',
+  'GOOGLE_CLIENT_EMAIL',
+  'SPREADSHEET_ID',
+  'FIREBASE_PRIVATE_KEY',
+  'FIREBASE_CLIENT_EMAIL'
+]
+
+requiredEnvVars.forEach(varName => {
+  if (!process.env[varName]) {
+    console.error(`Missing required environment variable: ${varName}`)
+  }
+})
+
 // Function to ensure the ActivityLogs sheet exists
 async function ensureLogsSheetExists() {
   try {
@@ -188,6 +203,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     console.log('Received log request')
+    console.log('Request URL:', request.url)
     
     // Ensure the sheet exists before proceeding
     await ensureLogsSheetExists()
@@ -203,8 +219,14 @@ export async function POST(request: NextRequest) {
 
     const token = authHeader.split('Bearer ')[1]
     console.log('Verifying token...')
-    const decodedToken = await admin.auth().verifyIdToken(token)
-    console.log('Token verified, user:', decodedToken.uid)
+    
+    try {
+      const decodedToken = await admin.auth().verifyIdToken(token)
+      console.log('Token verified, user:', decodedToken.uid)
+    } catch (tokenError) {
+      console.error('Token verification failed:', tokenError)
+      return NextResponse.json({ error: 'Invalid token' }, { status: 401 })
+    }
 
     // Get request body
     const body = await request.json()
@@ -260,8 +282,15 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: true })
   } catch (error) {
     console.error('Error logging activity:', error)
+    // Add more detailed error information
+    const errorDetails = error instanceof Error ? {
+      message: error.message,
+      stack: error.stack,
+      name: error.name
+    } : 'Unknown error'
+    
     return NextResponse.json(
-      { error: 'Internal Server Error', details: error instanceof Error ? error.message : 'Unknown error' },
+      { error: 'Internal Server Error', details: errorDetails },
       { status: 500 }
     )
   }

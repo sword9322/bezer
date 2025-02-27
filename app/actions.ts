@@ -40,6 +40,18 @@ const TIPOLOGIAS_RANGE = 'Tipologias!A:A';
 
 const COLUMN_TITLES = ['Referência', 'Imagem', 'Altura', 'Largura', 'Marca', 'Campanha', 'Data', 'Estoque', 'Localidade', 'Tipologia', 'Notas']
 
+// Replace hardcoded localhost URLs with dynamic origin
+const getApiUrl = () => {
+  // In browser environment
+  if (typeof window !== 'undefined') {
+    return `${window.location.origin}/api/logs`
+  }
+  // In server environment
+  const protocol = process.env.NODE_ENV === 'production' ? 'https' : 'http'
+  const host = process.env.VERCEL_URL || 'localhost:3000'
+  return `${protocol}://${host}/api/logs`
+}
+
 async function addProduct(formData: FormData, warehouse: string, user: { id: string; name: string; email: string; role: string }) {
   try {
     const response = await sheets.spreadsheets.values.get({
@@ -99,7 +111,7 @@ async function addProduct(formData: FormData, warehouse: string, user: { id: str
         headers.append('Content-Type', 'application/json')
         headers.append('Authorization', `Bearer ${token}`)
 
-        const response = await fetch('http://localhost:3000/api/logs', {
+        const response = await fetch(getApiUrl(), {
           method: 'POST',
           headers,
           body: JSON.stringify({
@@ -230,7 +242,7 @@ async function deleteProduct(ref: string, user: { id: string; name: string; emai
 
       if (token) {
         try {
-          const response = await fetch('http://localhost:3000/api/logs', {
+          const response = await fetch(getApiUrl(), {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -338,7 +350,7 @@ async function updateProduct(updatedProduct: Product) {
 
     if (token) {
       try {
-        const response = await fetch('http://localhost:3000/api/logs', {
+        const response = await fetch(getApiUrl(), {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
