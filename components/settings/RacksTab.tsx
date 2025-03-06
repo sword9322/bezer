@@ -124,6 +124,7 @@ export default function RacksTab() {
           >
             <option value="Warehouse 1">Armazém 1</option>
             <option value="Warehouse 2">Armazém 2</option>
+            <option value="Warehouse 3">Armazém Norte</option>
           </select>
           <div className="px-3 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200 rounded-full text-sm font-medium">
             {racks.length} Racks
@@ -222,6 +223,7 @@ export default function RacksTab() {
               >
                 <option value="Warehouse 1">Armazém 1</option>
                 <option value="Warehouse 2">Armazém 2</option>
+                <option value="Warehouse 3">Armazém Norte</option>
               </select>
             </div>
 

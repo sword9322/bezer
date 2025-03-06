@@ -17,8 +17,16 @@ interface EditProductFormProps {
   isLoading?: boolean;
 }
 
+// Define types instead of using any
+interface CampaignData {
+  id: string;
+  nome: string;
+  marcaId: string;
+  status: string;
+}
+
 export default function EditProductForm({ product, onUpdate, onCancel, isLoading = false }: EditProductFormProps) {
-  const { register, handleSubmit, watch } = useForm<Product>({
+  const { register, handleSubmit, watch, setValue, reset } = useForm<Product>({
     defaultValues: {
       ...product,
       tipologia: product.tipologia || '',
@@ -29,8 +37,11 @@ export default function EditProductForm({ product, onUpdate, onCancel, isLoading
   const [brands, setBrands] = useState<string[]>([])
   const [tipologias, setTipologias] = useState<string[]>([])
   const [racks, setRacks] = useState<string[]>([])
-  const [customTipologia, setCustomTipologia] = useState('')
   const [customTipologiaInput, setCustomTipologiaInput] = useState('')
+  const [selectedBrand, setSelectedBrand] = useState(product.brand || '')
+  const [brandCampaigns, setBrandCampaigns] = useState<string[]>([])
+  const [isLoadingCampaigns, setIsLoadingCampaigns] = useState(false)
+  const [campanhaNomes] = useState<Record<string, string>>({})
 
   const selectedWarehouse = watch('warehouse')
 
@@ -41,23 +52,85 @@ export default function EditProductForm({ product, onUpdate, onCancel, isLoading
         fetchTipologias(),
         fetchRacksForWarehouse(selectedWarehouse)
       ]);
-      setBrands(fetchedBrands);
-      setTipologias(fetchedTipologias);
-      setRacks(fetchedRacks);
 
-      // After loading data, ensure the current values are in the options
-      if (!fetchedBrands.includes(product.brand)) {
-        setBrands(prev => [...prev, product.brand]);
-      }
-      if (!fetchedTipologias.includes(product.tipologia)) {
-        setTipologias(prev => [...prev, product.tipologia]);
-      }
-      if (!fetchedRacks.includes(product.localidade)) {
-        setRacks(prev => [...prev, product.localidade]);
-      }
+      // Garantir que os valores atuais estão nas opções
+      const updatedBrands = fetchedBrands.includes(product.brand) 
+        ? fetchedBrands 
+        : [...fetchedBrands, product.brand];
+      
+      const updatedTipologias = fetchedTipologias.includes(product.tipologia)
+        ? fetchedTipologias
+        : [...fetchedTipologias, product.tipologia];
+
+      const updatedRacks = fetchedRacks.includes(product.localidade)
+        ? fetchedRacks
+        : [...fetchedRacks, product.localidade];
+
+      setBrands(updatedBrands);
+      setTipologias(updatedTipologias);
+      setRacks(updatedRacks);
+
+      // Atualizar valores do formulário após carregar os dados
+      setValue('brand', product.brand);
+      setValue('localidade', product.localidade);
+      setValue('tipologia', product.tipologia);
     };
+    
     loadData();
-  }, [selectedWarehouse, product.brand, product.tipologia, product.localidade]);
+  }, [selectedWarehouse, product.brand, product.tipologia, product.localidade, setValue]);
+
+  useEffect(() => {
+    if (product) {
+      reset({
+        ...product,
+        tipologia: product.tipologia || '',
+        brand: product.brand || '',
+        localidade: product.localidade || ''
+      });
+      setSelectedBrand(product.brand || '');
+    }
+  }, [product, reset]);
+
+  const loadCampaigns = async (brand: string) => {
+    try {
+      const response = await fetch(`/api/campanhas?marcaId=${brand}`)
+      const data = await response.json()
+      
+      if (data.campanhas) {
+        return data.campanhas
+          .filter((campanha: CampaignData) => campanha.status === "Ativo")
+          .map((campanha: CampaignData) => ({
+            value: campanha.id,
+            label: campanha.nome
+          }))
+      }
+      return []
+    } catch (error) {
+      console.error("Error loading campaigns:", error)
+      return []
+    }
+  }
+
+  useEffect(() => {
+    async function loadCampaignsForBrand() {
+      if (!selectedBrand) {
+        setBrandCampaigns([]);
+        return;
+      }
+      
+      setIsLoadingCampaigns(true);
+      try {
+        const campaignIds = await loadCampaigns(selectedBrand);
+        setBrandCampaigns(campaignIds.map((campaign: { value: string; label: string }) => campaign.value));
+      } catch (error) {
+        console.error('Erro ao carregar campanhas:', error);
+      } finally {
+        setIsLoadingCampaigns(false);
+      }
+    }
+    
+    loadCampaignsForBrand();
+  }, [selectedBrand]);
 
   const onSubmit = (data: Product) => {
     if (data.tipologia === 'outro') {
@@ -65,6 +138,20 @@ export default function EditProductForm({ product, onUpdate, onCancel, isLoading
     }
     onUpdate(data);
   };
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { name, value } = e.target
+    
+    // If the brand is changed, update selectedBrand
+    if (name === 'brand') {
+      setSelectedBrand(value)
+      // If the brand changes, reset the campaign
+      setValue('campaign', '')
+      setValue(name as keyof Product, value)
+    } else {
+      setValue(name as keyof Product, value)
+    }
+  }
 
   return (
     <div className="bg-gradient-to-b from-white to-slate-50 dark:from-slate-800 dark:to-slate-900 p-4 rounded-2xl">
@@ -106,6 +193,7 @@ export default function EditProductForm({ product, onUpdate, onCancel, isLoading
                 id="brand"
                 {...register('brand', { required: 'Marca é obrigatória' })}
                 className="w-full rounded-xl border-slate-300 dark:border-slate-600 focus:border-blue-500 focus:ring-blue-500 dark:bg-slate-800 dark:text-white transition-all duration-200"
+                value={watch('brand')}
               >
                 {brands.map((brand) => (
                   <option key={brand} value={brand}>{brand}</option>
@@ -114,16 +202,38 @@ export default function EditProductForm({ product, onUpdate, onCancel, isLoading
             </div>
           </div>
 
-          <div className="space-y-1">
-            <Label htmlFor="campaign" className="text-sm font-medium text-slate-700 dark:text-slate-300">
+          {/* Campaign dropdown dependent on selected brand */}
+          <div className="mb-4">
+            <label htmlFor="campaign" className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
               Campanha
-            </Label>
-            <Input
-              id="campaign"
-              {...register('campaign', { required: 'Campanha é obrigatória' })}
-              className="w-full rounded-xl border-slate-300 dark:border-slate-600 focus:border-blue-500 focus:ring-blue-500 dark:bg-slate-800 dark:text-white transition-all duration-200"
-              placeholder="Nome da campanha"
-            />
+            </label>
+            <div className="relative">
+              <select
+                id="campaign"
+                name="campaign"
+                value={watch('campaign')}
+                onChange={handleChange}
+                className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 dark:border-gray-700 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md dark:bg-gray-800 dark:text-gray-300"
+                disabled={!selectedBrand || isLoadingCampaigns}
+              >
+                <option value="">Selecione uma campanha</option>
+                {brandCampaigns.map((campaignId) => (
+                  <option key={campaignId} value={campaignId}>
+                    {campanhaNomes[campaignId] || campaignId}
+                  </option>
+                ))}
+              </select>
+              {isLoadingCampaigns && (
+                <div className="absolute right-2 top-1/2 transform -translate-y-1/2">
+                  <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-blue-500"></div>
+                </div>
+              )}
+            </div>
+            {!selectedBrand && (
+              <p className="mt-1 text-sm text-gray-500">
+                Selecione uma marca primeiro para ver as campanhas disponíveis
+              </p>
+            )}
           </div>
         </div>
 
@@ -192,6 +302,7 @@ export default function EditProductForm({ product, onUpdate, onCancel, isLoading
               >
                 <option value="Warehouse 1">Armazém 1</option>
                 <option value="Warehouse 2">Armazém 2</option>
+                <option value="Warehouse 3">Armazém Norte</option>
               </select>
             </div>
 
@@ -203,6 +314,7 @@ export default function EditProductForm({ product, onUpdate, onCancel, isLoading
                 id="localidade"
                 {...register('localidade', { required: 'Localidade é obrigatória' })}
                 className="w-full rounded-xl border-slate-300 dark:border-slate-600 focus:border-blue-500 focus:ring-blue-500 dark:bg-slate-800 dark:text-white transition-all duration-200"
+                value={watch('localidade')}
               >
                 {racks.map((rack) => (
                   <option key={rack} value={rack}>{rack}</option>
@@ -218,16 +330,7 @@ export default function EditProductForm({ product, onUpdate, onCancel, isLoading
                 id="tipologia"
                 {...register('tipologia', { required: 'Tipologia é obrigatória' })}
                 className="w-full rounded-xl border-slate-300 dark:border-slate-600 focus:border-blue-500 focus:ring-blue-500 dark:bg-slate-800 dark:text-white transition-all duration-200"
-                onChange={(e) => {
-                  const selectedValue = e.target.value;
-                  if (selectedValue === 'outro') {
-                    setCustomTipologia('outro');
-                    setCustomTipologiaInput('');
-                  } else {
-                    setCustomTipologia(selectedValue);
-                    setCustomTipologiaInput('');
-                  }
-                }}
+                value={watch('tipologia')}
               >
                 {tipologias.map((tipologia) => (
                   <option key={tipologia} value={tipologia}>{tipologia}</option>
@@ -235,7 +338,7 @@ export default function EditProductForm({ product, onUpdate, onCancel, isLoading
                 <option value="outro">Outro (com descrição)</option>
               </select>
               
-              {customTipologia === 'outro' && (
+              {customTipologiaInput === 'outro' && (
                 <Input
                   type="text"
                   placeholder="Descreva a tipologia"

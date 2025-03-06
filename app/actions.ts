@@ -8,6 +8,7 @@ import dotenv from 'dotenv'
 import { Readable } from 'stream'
 //import { logActivity } from '@/lib/activity-logger'
 import { cookies } from 'next/headers'
+import { logActivity } from '@/lib/activity-logger'
 
 dotenv.config()
 
@@ -74,7 +75,8 @@ async function addProduct(formData: FormData, warehouse: string, user: { id: str
 
     const image = formData.get('image') as File;
     console.log('Image object:', image);
-    const imageLink = await uploadImageToDrive(image);
+    const ref = `REF-${Math.floor(Math.random() * 10000)}`;
+    const imageLink = await uploadImageToDrive(image, ref);
     const height = formData.get('height');
     const width = formData.get('width');
     const brand = formData.get('brand');
@@ -84,8 +86,7 @@ async function addProduct(formData: FormData, warehouse: string, user: { id: str
     const localidade = formData.get('localidade');
     const tipologia = formData.get('tipologia');
     const notes = formData.get('notes');
-    const ref = `REF-${Math.floor(Math.random() * 10000)}`;
-    const warehouseNumber = warehouse === 'Warehouse 1' ? '1' : '2';
+    const warehouseNumber = warehouse === 'Warehouse 1' ? '1' : warehouse === 'Warehouse 2' ? '2' : '3';
 
     const values = [
       [ref, imageLink, height, width, brand, campaign, date, stock, localidade, tipologia, notes, warehouseNumber]
@@ -169,7 +170,11 @@ async function getProducts(page: number, warehouse: string, pageSize: number = 1
     const rows = response.data.values;
     if (!rows) throw new Error('No data found.');
 
-    const warehouseNumber = warehouse === 'Warehouse 1' ? '1' : '2';
+    let warehouseNumber: string;
+    if (warehouse === 'Warehouse 1') warehouseNumber = '1';
+    else if (warehouse === 'Warehouse 2') warehouseNumber = '2';
+    else if (warehouse === 'Warehouse 3') warehouseNumber = '3';
+
     const products = rows
       .filter(row => row[11] === warehouseNumber) // Filter by warehouse number
       .map(row => ({
@@ -184,7 +189,7 @@ async function getProducts(page: number, warehouse: string, pageSize: number = 1
         localidade: row[8],
         tipologia: row[9],
         notes: row[10] || '',
-        warehouse: row[11] === '1' ? 'Warehouse 1' : 'Warehouse 2'
+        warehouse: row[11] === '1' ? 'Warehouse 1' : row[11] === '2' ? 'Warehouse 2' : 'Warehouse 3'
       }));
 
     return { products, totalPages: Math.ceil(products.length / pageSize) };
@@ -265,7 +270,7 @@ async function deleteProduct(ref: string, user: { id: string; name: string; emai
                   localidade: productToDelete[8],
                   tipologia: productToDelete[9],
                   notes: productToDelete[10] || '',
-                  warehouse: productToDelete[11] === '1' ? 'Warehouse 1' : 'Warehouse 2'
+                  warehouse: productToDelete[11] === '1' ? 'Warehouse 1' : productToDelete[11] === '2' ? 'Warehouse 2' : 'Warehouse 3'
                 },
                 after: null
               },
@@ -332,7 +337,7 @@ async function updateProduct(updatedProduct: Product) {
       updatedProduct.localidade,
       updatedProduct.tipologia,
       updatedProduct.notes || '', // Ensure notes is never undefined
-      updatedProduct.warehouse === 'Warehouse 1' ? '1' : '2' // Convert warehouse name to number
+      updatedProduct.warehouse === 'Warehouse 1' ? '1' : updatedProduct.warehouse === 'Warehouse 2' ? '2' : '3' // Convert warehouse name to number
     ];
 
     const updateResponse = await sheets.spreadsheets.values.update({
@@ -348,8 +353,36 @@ async function updateProduct(updatedProduct: Product) {
     const cookieStore = cookies()
     const token = cookieStore.get('firebase-token')?.value
 
+    // Ensure user.id is always a string
+    const user = {
+      id: updatedProduct.userId || 'unknown-user', // Add default value
+      name: updatedProduct.userName || 'Unknown User',
+      email: updatedProduct.userEmail || 'No Email',
+      role: updatedProduct.userRole || 'user'
+    };
+
     if (token) {
       try {
+        const originalProductObj = {
+          ref: originalProduct[0],
+          image: originalProduct[1],
+          height: originalProduct[2],
+          width: originalProduct[3],
+          brand: originalProduct[4],
+          campaign: originalProduct[5],
+          date: originalProduct[6],
+          stock: originalProduct[7],
+          localidade: originalProduct[8],
+          tipologia: originalProduct[9],
+          notes: originalProduct[10] || '',
+          warehouse: originalProduct[11] === '1' ? 'Warehouse 1' : originalProduct[11] === '2' ? 'Warehouse 2' : 'Warehouse 3'
+        };
+
+        await logActivity('edited', 'product', updatedProduct.ref, {
+          before: originalProductObj,
+          after: updatedProduct
+        }, user);
+
         const response = await fetch(getApiUrl(), {
           method: 'POST',
           headers: {
@@ -373,7 +406,7 @@ async function updateProduct(updatedProduct: Product) {
                 localidade: originalProduct[8],
                 tipologia: originalProduct[9],
                 notes: originalProduct[10] || '',
-                warehouse: originalProduct[11] === '1' ? 'Warehouse 1' : 'Warehouse 2'
+                warehouse: originalProduct[11] === '1' ? 'Warehouse 1' : originalProduct[11] === '2' ? 'Warehouse 2' : 'Warehouse 3'
               },
               after: updatedProduct
             },
@@ -400,11 +433,14 @@ async function updateProduct(updatedProduct: Product) {
   }
 }
 
-async function uploadImageToDrive(image: File): Promise<string> {
+async function uploadImageToDrive(image: File, ref: string): Promise<string> {
   const drive = google.drive({ version: 'v3', auth });
 
+  // Get file extension from original file
+  const extension = image.name.split('.').pop() || '';
+
   const fileMetadata = {
-    name: image.name,
+    name: `${ref}.${extension}`, // Use REF as filename with original extension
     parents: ['1jC__wec1icenm-UjqaCqU1EVEEg5Pawv'], // Replace with your Google Drive folder ID
   };
 
@@ -414,7 +450,7 @@ async function uploadImageToDrive(image: File): Promise<string> {
 
   const media = {
     mimeType: image.type,
-    body: stream, // Use the readable stream
+    body: stream,
   };
 
   try {
@@ -497,7 +533,7 @@ export async function getDeletedProducts() {
       localidade: row[8],
       tipologia: row[9],
       notes: row[10] || '',
-      warehouse: row[11] === '1' ? 'Warehouse 1' : 'Warehouse 2'
+      warehouse: row[11] === '1' ? 'Warehouse 1' : row[11] === '2' ? 'Warehouse 2' : 'Warehouse 3'
     }));
 
     return products;
@@ -537,19 +573,44 @@ export const fetchBrands = async () => {
   return response.data.values?.flat() || [];
 };
 
-export const addBrand = async (brand: string) => {
-  await sheets.spreadsheets.values.append({
-    spreadsheetId: SPREADSHEET_ID,
-    range: BRANDS_RANGE,
-    valueInputOption: 'USER_ENTERED',
-    requestBody: {
-      values: [[brand]],
-    },
-  });
+export const addBrand = async (brand: string, userId: string) => {
+  try {
+    // Create a user object for logActivity
+    const user = {
+      id: userId,
+      name: 'User',
+      email: '',
+      role: ''
+    };
+    
+    await sheets.spreadsheets.values.append({
+      spreadsheetId: SPREADSHEET_ID,
+      range: BRANDS_RANGE,
+      valueInputOption: 'USER_ENTERED',
+      requestBody: {
+        values: [[brand]],
+      },
+    });
+
+    await logActivity('added', 'brand', brand, {
+      after: { name: brand }
+    }, user);
+  } catch (error) {
+    console.error('Error adding brand:', error);
+    throw error;
+  }
 };
 
-export const deleteBrand = async (brand: string) => {
+export const deleteBrand = async (brand: string, userId: string) => {
   try {
+    // Create a user object from userId for logActivity
+    const user = {
+      id: userId,
+      name: 'User',
+      email: '',
+      role: ''
+    };
+    
     // Get the spreadsheet metadata to find the correct sheet ID
     const spreadsheet = await sheets.spreadsheets.get({
       spreadsheetId: SPREADSHEET_ID,
@@ -591,6 +652,10 @@ export const deleteBrand = async (brand: string) => {
         }]
       }
     });
+
+    await logActivity('deleted', 'brand', brand, {
+      before: { name: brand }
+    }, user);
 
     return { success: true };
   } catch (error) {
@@ -836,7 +901,7 @@ export async function fetchRacksForWarehouse(warehouse: string) {
     const rows = response.data.values;
     if (!rows) return [];
 
-    const warehouseNumber = warehouse === 'Warehouse 1' ? '1' : '2';
+    const warehouseNumber = warehouse === 'Warehouse 1' ? '1' : warehouse === 'Warehouse 2' ? '2' : '3';
     const racks = rows
       .filter(row => row[1] === warehouseNumber) // Filter by warehouse number in second column
       .map(row => row[0]); // Get only the rack IDs
@@ -844,6 +909,27 @@ export async function fetchRacksForWarehouse(warehouse: string) {
     return racks;
   } catch (error) {
     console.error('Error fetching racks:', error);
+    return [];
+  }
+}
+
+export async function fetchCampaigns(brand: string) {
+  try {
+    const response = await sheets.spreadsheets.values.get({
+      spreadsheetId: SPREADSHEET_ID,
+      range: 'Campanhas!A2:B', // Assume A=brand, B=campaign name
+    });
+
+    const rows = response.data.values;
+    if (!rows) return [];
+
+    // Filter campaigns by the selected brand
+    return rows
+      .filter(row => row[0] === brand)
+      .map(row => row[1])
+      .filter((campaign, index, self) => self.indexOf(campaign) === index); // Remove duplicates
+  } catch (error) {
+    console.error('Error fetching campaigns:', error);
     return [];
   }
 }

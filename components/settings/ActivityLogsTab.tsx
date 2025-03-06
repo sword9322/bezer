@@ -9,7 +9,8 @@ import {
   faSpinner,
   faDownload,
   faCalendar,
-  faChartBar
+  faChartBar,
+  faExclamationTriangle
 } from '@fortawesome/free-solid-svg-icons'
 import { toast } from 'sonner'
 import { format } from 'date-fns'
@@ -81,8 +82,8 @@ export default function ActivityLogsTab() {
       const queryParams = new URLSearchParams({
         page: page.toString(),
         limit: logsPerPage.toString(),
-        action: actionFilter,
-        entity: entityFilter,
+        action: actionFilter !== 'all' ? actionFilter : '',
+        entity: entityFilter !== 'all' ? entityFilter : '',
         ...(dateRange?.from && { from: dateRange.from.toISOString() }),
         ...(dateRange?.to && { to: dateRange.to.toISOString() }),
         search: searchQuery
@@ -93,8 +94,6 @@ export default function ActivityLogsTab() {
           Authorization: `Bearer ${token}`
         }
       })
-      
-      const data = await response.json()
       
       if (!response.ok) {
         if (response.status === 401) {
@@ -107,14 +106,22 @@ export default function ActivityLogsTab() {
           router.push('/')
           return
         }
-        throw new Error(data.error || 'Erro ao carregar logs')
+        
+        const errorText = await response.text()
+        console.error('Error response from logs API:', errorText)
+        throw new Error(`Error ${response.status}: ${errorText}`)
       }
       
-      setLogs(data.logs as LogEntry[])
-      setTotalPages(Math.ceil(data.total / logsPerPage))
+      const data = await response.json()
+      setLogs(data.logs || [])
+      setTotalPages(Math.ceil(data.total / logsPerPage) || 1)
     } catch (err) {
       console.error('Error fetching logs:', err)
-      toast.error('Erro ao carregar logs de atividade')
+      toast.error('Não foi possível carregar os logs de atividade. Verifique se as credenciais do Google Sheets estão configuradas corretamente.', {
+        duration: 5000
+      })
+      setLogs([])
+      setTotalPages(1)
     } finally {
       setLoading(false)
     }
@@ -149,6 +156,10 @@ export default function ActivityLogsTab() {
         return 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200'
       case 'typology':
         return 'bg-pink-100 text-pink-800 dark:bg-pink-900 dark:text-pink-200'
+      case 'campaign':
+        return 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200'
+      case 'rack':
+        return 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200'
       default:
         return 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200'
     }
@@ -194,6 +205,31 @@ export default function ActivityLogsTab() {
   }
 
   const stats = getActivityStats()
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center p-8">
+        <FontAwesomeIcon icon={faSpinner} className="w-8 h-8 animate-spin text-blue-500" />
+      </div>
+    )
+  }
+
+  if (logs.length === 0) {
+    return (
+      <div className="p-6 text-center">
+        <div className="mb-4 text-red-500 dark:text-red-400">
+          <FontAwesomeIcon icon={faExclamationTriangle} className="text-3xl" />
+        </div>
+        <h3 className="text-lg font-medium mb-2">Não foi possível carregar os logs</h3>
+        <p className="text-sm text-slate-600 dark:text-slate-400 mb-4">
+          Há um problema com a conexão ao Google Sheets. Verifique se as variáveis de ambiente estão configuradas corretamente.
+        </p>
+        <Button onClick={fetchLogs} className="mr-2">
+          Tentar novamente
+        </Button>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-6">
@@ -281,6 +317,8 @@ export default function ActivityLogsTab() {
             <SelectItem value="product">Produtos</SelectItem>
             <SelectItem value="brand">Marcas</SelectItem>
             <SelectItem value="typology">Tipologias</SelectItem>
+            <SelectItem value="campaign">Campanhas</SelectItem>
+            <SelectItem value="rack">Racks</SelectItem>
           </SelectContent>
         </Select>
 
@@ -321,89 +359,85 @@ export default function ActivityLogsTab() {
       </div>
 
       {/* Activity Logs Table */}
-      {loading ? (
-        <div className="flex items-center justify-center p-8">
-          <FontAwesomeIcon icon={faSpinner} className="w-8 h-8 animate-spin text-blue-500" />
-        </div>
-      ) : (
-        <div className="rounded-md border">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Data/Hora</TableHead>
-                <TableHead>Ação</TableHead>
-                <TableHead>Tipo</TableHead>
-                <TableHead>Nome</TableHead>
-                <TableHead>Usuário</TableHead>
-                <TableHead>Função</TableHead>
-                <TableHead>Detalhes</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {logs.map((log) => (
-                <TableRow key={log.id}>
-                  <TableCell className="font-medium">
-                    {format(new Date(log.timestamp), 'dd/MM/yyyy HH:mm:ss')}
-                  </TableCell>
-                  <TableCell>
-                    <Badge className={getActionBadgeVariant(log.actionType)}>
-                      {log.actionType === 'added' && 'Adicionado'}
-                      {log.actionType === 'edited' && 'Editado'}
-                      {log.actionType === 'deleted' && 'Excluído'}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <Badge className={getEntityBadgeVariant(log.entityType)}>
-                      {log.entityType === 'product' && 'Produto'}
-                      {log.entityType === 'brand' && 'Marca'}
-                      {log.entityType === 'typology' && 'Tipologia'}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>{log.entityId}</TableCell>
-                  <TableCell>{log.userName}</TableCell>
-                  <TableCell>
-                    <Badge variant="outline">
-                      {log.userRole === 'admin' && 'Administrador'}
-                      {log.userRole === 'manager' && 'Gerente'}
-                      {log.userRole === 'user' && 'Usuário'}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    {log.changes && (
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <Button variant="ghost" size="sm">
-                            Ver alterações
-                          </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-80">
-                          <div className="space-y-2">
-                            <h4 className="font-medium">Alterações</h4>
-                            <div className="text-sm">
-                              <div className="mb-2">
-                                <span className="font-medium">Antes:</span>
-                                <pre className="mt-1 p-2 bg-gray-100 dark:bg-gray-800 rounded">
-                                  {JSON.stringify(log.changes.before, null, 2)}
-                                </pre>
-                              </div>
-                              <div>
-                                <span className="font-medium">Depois:</span>
-                                <pre className="mt-1 p-2 bg-gray-100 dark:bg-gray-800 rounded">
-                                  {JSON.stringify(log.changes.after, null, 2)}
-                                </pre>
-                              </div>
+      <div className="rounded-md border">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Data/Hora</TableHead>
+              <TableHead>Ação</TableHead>
+              <TableHead>Tipo</TableHead>
+              <TableHead>Nome</TableHead>
+              <TableHead>Usuário</TableHead>
+              <TableHead>Função</TableHead>
+              <TableHead>Detalhes</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {logs.map((log) => (
+              <TableRow key={log.id}>
+                <TableCell className="font-medium">
+                  {format(new Date(log.timestamp), 'dd/MM/yyyy HH:mm:ss')}
+                </TableCell>
+                <TableCell>
+                  <Badge className={getActionBadgeVariant(log.actionType)}>
+                    {log.actionType === 'added' && 'Adicionado'}
+                    {log.actionType === 'edited' && 'Editado'}
+                    {log.actionType === 'deleted' && 'Excluído'}
+                  </Badge>
+                </TableCell>
+                <TableCell>
+                  <Badge className={getEntityBadgeVariant(log.entityType)}>
+                    {log.entityType === 'product' && 'Produto'}
+                    {log.entityType === 'brand' && 'Marca'}
+                    {log.entityType === 'typology' && 'Tipologia'}
+                    {log.entityType === 'campaign' && 'Campanha'}
+                    {log.entityType === 'rack' && 'Rack'}
+                  </Badge>
+                </TableCell>
+                <TableCell>{log.entityId}</TableCell>
+                <TableCell>{log.userName}</TableCell>
+                <TableCell>
+                  <Badge variant="outline">
+                    {log.userRole === 'admin' && 'Administrador'}
+                    {log.userRole === 'manager' && 'Gerente'}
+                    {log.userRole === 'user' && 'Usuário'}
+                  </Badge>
+                </TableCell>
+                <TableCell>
+                  {log.changes && (
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button variant="ghost" size="sm">
+                          Ver alterações
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-80">
+                        <div className="space-y-2">
+                          <h4 className="font-medium">Alterações</h4>
+                          <div className="text-sm">
+                            <div className="mb-2">
+                              <span className="font-medium">Antes:</span>
+                              <pre className="mt-1 p-2 bg-gray-100 dark:bg-gray-800 rounded">
+                                {JSON.stringify(log.changes.before, null, 2)}
+                              </pre>
+                            </div>
+                            <div>
+                              <span className="font-medium">Depois:</span>
+                              <pre className="mt-1 p-2 bg-gray-100 dark:bg-gray-800 rounded">
+                                {JSON.stringify(log.changes.after, null, 2)}
+                              </pre>
                             </div>
                           </div>
-                        </PopoverContent>
-                      </Popover>
-                    )}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
-      )}
+                        </div>
+                      </PopoverContent>
+                    </Popover>
+                  )}
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
 
       {/* Pagination */}
       <div className="flex items-center justify-between">

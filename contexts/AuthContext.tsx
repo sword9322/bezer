@@ -12,6 +12,7 @@ import {
 import { useRouter } from 'next/navigation';
 
 interface AuthContextType {
+  currentUser: User | null;
   user: User | null;
   loading: boolean;
   userRole: string | null;
@@ -154,6 +155,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   const value = {
+    currentUser: user,
     user,
     loading,
     userRole,

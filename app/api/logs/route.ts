@@ -1,20 +1,27 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getFirebaseAdmin } from '@/lib/firebase-admin'
+import { getFirebaseAdminApp } from '@/lib/firebase-admin'
 import { google } from 'googleapis'
+import { getAuth } from 'firebase-admin/auth'
 
-// Initialize Google Sheets API
-const sheets = google.sheets('v4')
-const SPREADSHEET_ID = process.env.SPREADSHEET_ID
-const LOGS_SHEET_NAME = 'ActivityLogs'
-
-// Initialize auth for Google Sheets
+// Initialize auth for Google Sheets properly
 const auth = new google.auth.GoogleAuth({
   credentials: {
-    client_email: process.env.GOOGLE_CLIENT_EMAIL,
+    type: "service_account",
+    project_id: process.env.GOOGLE_PROJECT_ID,
     private_key: process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
+    client_email: process.env.GOOGLE_CLIENT_EMAIL,
   },
   scopes: ['https://www.googleapis.com/auth/spreadsheets'],
 })
+
+// Initialize Google Sheets API with auth
+const sheets = google.sheets({
+  version: 'v4',
+  auth: auth
+})
+
+const SPREADSHEET_ID = process.env.SPREADSHEET_ID
+const LOGS_SHEET_NAME = 'ActivityLogs'
 
 // Add this at the top of the file
 const requiredEnvVars = [
@@ -31,24 +38,36 @@ requiredEnvVars.forEach(varName => {
   }
 })
 
+// Comment out or remove LogEntry if unused
+// Replace any types with more specific types
+// type LogData = {
+//   type: string;
+//   message: string;
+//   // other fields...
+// }
+
 // Function to ensure the ActivityLogs sheet exists
 async function ensureLogsSheetExists() {
   try {
-    // Get spreadsheet metadata
-    const spreadsheet = await sheets.spreadsheets.get({
-      auth,
+    // Check if the sheet exists
+    const sheetsClient = google.sheets({
+      version: 'v4',
+      auth: auth
+    })
+    
+    console.log('Checking if logs sheet exists...')
+    const spreadsheet = await sheetsClient.spreadsheets.get({
       spreadsheetId: SPREADSHEET_ID,
+      auth: auth
     })
 
-    // Check if ActivityLogs sheet exists
-    const sheet = spreadsheet.data.sheets?.find(
-      (s) => s.properties?.title === LOGS_SHEET_NAME
-    )
+    const sheetExists = spreadsheet.data.sheets?.some(
+      sheet => sheet.properties?.title === LOGS_SHEET_NAME
+    );
 
-    if (!sheet) {
+    if (!sheetExists) {
       // Create the sheet if it doesn't exist
-      await sheets.spreadsheets.batchUpdate({
-        auth,
+      await sheetsClient.spreadsheets.batchUpdate({
         spreadsheetId: SPREADSHEET_ID,
         requestBody: {
           requests: [
@@ -56,41 +75,26 @@ async function ensureLogsSheetExists() {
               addSheet: {
                 properties: {
                   title: LOGS_SHEET_NAME,
-                  gridProperties: {
-                    rowCount: 1000,
-                    columnCount: 10,
-                  },
-                },
-              },
-            },
-          ],
-        },
-      })
+                }
+              }
+            }
+          ]
+        }
+      });
 
-      // Add headers
-      await sheets.spreadsheets.values.update({
-        auth,
+      // Add headers to the new sheet
+      await sheetsClient.spreadsheets.values.update({
         spreadsheetId: SPREADSHEET_ID,
         range: `${LOGS_SHEET_NAME}!A1:J1`,
         valueInputOption: 'RAW',
         requestBody: {
-          values: [[
-            'ID',
-            'Timestamp',
-            'Action Type',
-            'Entity Type',
-            'Entity Name',
-            'Entity ID',
-            'User Name',
-            'User Email',
-            'User Role',
-            'Changes',
-          ]],
-        },
-      })
+          values: [['ID', 'Timestamp', 'Action Type', 'Entity Type', 'Entity ID', 'Changes', 'User ID', 'User Name', 'User Email', 'User Role']]
+        }
+      });
     }
   } catch (error) {
-    console.error('Error ensuring logs sheet exists:', error)
+    console.error('Error ensuring logs sheet exists:', error);
+    throw error;
   }
 }
 
@@ -100,14 +104,15 @@ export async function GET(request: NextRequest) {
     await ensureLogsSheetExists()
 
     // Check if user is authenticated and is admin
-    const admin = getFirebaseAdmin()
+    const admin = getFirebaseAdminApp()
     const authHeader = request.headers.get('Authorization')
     if (!authHeader?.startsWith('Bearer ')) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
     const token = authHeader.split('Bearer ')[1]
-    const decodedToken = await admin.auth().verifyIdToken(token)
+    const firebaseAuth = getAuth(admin)
+    const decodedToken = await firebaseAuth.verifyIdToken(token)
     
     // Allow both admin and manager roles to access logs
     if (!decodedToken.role || (decodedToken.role !== 'admin' && decodedToken.role !== 'manager')) {
@@ -126,26 +131,35 @@ export async function GET(request: NextRequest) {
 
     // Fetch logs from Google Sheets
     const response = await sheets.spreadsheets.values.get({
-      auth,
       spreadsheetId: SPREADSHEET_ID,
       range: `${LOGS_SHEET_NAME}!A2:J`,
     })
 
-    const rows = response.data.values || []
-    
+    // Handle empty response safely
+    if (!response.data.values) {
+      return NextResponse.json({ logs: [], total: 0 })
+    }
+
     // Transform and filter logs
-    let logs = rows.map((row) => ({
-      id: row[0],
-      timestamp: row[1],
-      actionType: row[2],
-      entityType: row[3],
-      entityName: row[4],
-      entityId: row[5],
-      userName: row[6],
-      userEmail: row[7],
-      userRole: row[8],
-      changes: row[9] ? JSON.parse(row[9]) : null,
-    }))
+    let logs = response.data.values.map((row) => {
+      try {
+        return {
+          id: row[0] || '',
+          timestamp: row[1] || new Date().toISOString(),
+          actionType: row[2] || '',
+          entityType: row[3] || '',
+          entityId: row[4] || '',
+          changes: row[5] ? JSON.parse(row[5]) : null,
+          userId: row[6] || '',
+          userName: row[7] || '',
+          userEmail: row[8] || '',
+          userRole: row[9] || '',
+        }
+      } catch (error) {
+        console.error('Error parsing log row:', error, row)
+        return null
+      }
+    }).filter(log => log !== null) // Filter out any null logs from parsing errors
 
     // Apply filters
     if (action && action !== 'all') {
@@ -169,7 +183,7 @@ export async function GET(request: NextRequest) {
     if (search) {
       const searchLower = search.toLowerCase()
       logs = logs.filter(log => 
-        log.entityName.toLowerCase().includes(searchLower) ||
+        log.entityId.toLowerCase().includes(searchLower) ||
         log.userName.toLowerCase().includes(searchLower) ||
         log.userEmail.toLowerCase().includes(searchLower)
       )
@@ -181,117 +195,60 @@ export async function GET(request: NextRequest) {
     // Calculate pagination
     const total = logs.length
     const startIndex = (page - 1) * limit
-    const endIndex = startIndex + limit
-    const paginatedLogs = logs.slice(startIndex, endIndex)
+    const paginatedLogs = logs.slice(startIndex, startIndex + limit)
 
-    return NextResponse.json({
-      logs: paginatedLogs,
-      total,
-      page,
-      totalPages: Math.ceil(total / limit),
-    })
-
+    return NextResponse.json({ logs: paginatedLogs, total })
   } catch (error) {
     console.error('Error fetching logs:', error)
-    return NextResponse.json(
-      { error: 'Internal Server Error' },
-      { status: 500 }
-    )
+    return NextResponse.json({ error: 'Failed to fetch logs' }, { status: 500 })
   }
 }
 
 export async function POST(request: NextRequest) {
   try {
-    console.log('Received log request')
-    console.log('Request URL:', request.url)
-    
-    // Ensure the sheet exists before proceeding
+    // Ensure the sheet exists first
     await ensureLogsSheetExists()
-    console.log('Logs sheet exists')
-
-    // Check if user is authenticated
-    const admin = getFirebaseAdmin()
+    
+    // Authenticate request
+    const admin = getFirebaseAdminApp()
     const authHeader = request.headers.get('Authorization')
     if (!authHeader?.startsWith('Bearer ')) {
-      console.log('No auth token found')
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
     const token = authHeader.split('Bearer ')[1]
-    console.log('Verifying token...')
+    const firebaseAuth = getAuth(admin)
+    await firebaseAuth.verifyIdToken(token)
     
-    try {
-      const decodedToken = await admin.auth().verifyIdToken(token)
-      console.log('Token verified, user:', decodedToken.uid)
-    } catch (tokenError) {
-      console.error('Token verification failed:', tokenError)
-      return NextResponse.json({ error: 'Invalid token' }, { status: 401 })
-    }
-
-    // Get request body
+    // Parse request body
     const body = await request.json()
-    console.log('Request body:', body)
+    const { actionType, entityType, entityId, changes, userId, userName, userEmail, userRole } = body
     
-    const {
-      actionType,
-      entityType,
-      entityId,
-      changes,
-      userName,
-      userEmail,
-      userRole
-    } = body
-
     // Validate required fields
-    if (!actionType || !entityType || !entityId) {
-      console.log('Missing required fields')
-      return NextResponse.json(
-        { error: 'Missing required fields' },
-        { status: 400 }
-      )
+    if (!actionType || !entityType || !entityId || !userId) {
+      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
     }
-
-    // Prepare log entry
-    const logEntry = [
-      crypto.randomUUID(), // id
-      new Date().toISOString(), // timestamp
-      actionType,
-      entityType,
-      entityId, // Using entityId as name since we don't have a separate name
-      entityId,
-      userName || 'Unknown User',
-      userEmail || 'No Email',
-      userRole || 'user',
-      changes ? JSON.stringify(changes) : '',
-    ]
-    console.log('Prepared log entry:', logEntry)
-
-    // Append to Google Sheets
-    console.log('Appending to sheets...')
+    
+    // Generate log ID and timestamp
+    const id = Date.now().toString()
+    const timestamp = new Date().toISOString()
+    
+    // Format changes as JSON string
+    const changesString = JSON.stringify(changes || {})
+    
+    // Append log to sheet
     await sheets.spreadsheets.values.append({
-      auth,
       spreadsheetId: SPREADSHEET_ID,
       range: `${LOGS_SHEET_NAME}!A:J`,
       valueInputOption: 'RAW',
       requestBody: {
-        values: [logEntry],
-      },
+        values: [[id, timestamp, actionType, entityType, entityId, changesString, userId, userName || '', userEmail || '', userRole || '']]
+      }
     })
-    console.log('Successfully appended to sheets')
-
-    return NextResponse.json({ success: true })
+    
+    return NextResponse.json({ success: true, id })
   } catch (error) {
     console.error('Error logging activity:', error)
-    // Add more detailed error information
-    const errorDetails = error instanceof Error ? {
-      message: error.message,
-      stack: error.stack,
-      name: error.name
-    } : 'Unknown error'
-    
-    return NextResponse.json(
-      { error: 'Internal Server Error', details: errorDetails },
-      { status: 500 }
-    )
+    return NextResponse.json({ error: 'Failed to log activity' }, { status: 500 })
   }
 } 

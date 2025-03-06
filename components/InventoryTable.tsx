@@ -74,7 +74,7 @@ export default function InventoryTable() {
   const [uniqueCampaigns, setUniqueCampaigns] = useState<string[]>([]);
   const [loadingStates, setLoadingStates] = useState<{ [key: string]: boolean }>({});
   const [isUpdating, setIsUpdating] = useState(false);
-  const { user, userRole } = useAuth()
+  const { user, userRole, isAdmin } = useAuth()
 
   const [filters, setFilters] = useState({
     ref: '',
@@ -124,10 +124,11 @@ export default function InventoryTable() {
 
   const fetchProducts = useCallback(async () => {
     let combinedProducts = [];
-    if (selectedWarehouse === 'Both') {
+    if (selectedWarehouse === 'All') {
       const result1 = await getProducts(currentPage, 'Warehouse 1');
       const result2 = await getProducts(currentPage, 'Warehouse 2');
-      combinedProducts = [...result1.products, ...result2.products];
+      const result3 = await getProducts(currentPage, 'Warehouse 3');
+      combinedProducts = [...result1.products, ...result2.products, ...result3.products];
     } else {
       const result = await getProducts(currentPage, selectedWarehouse);
       combinedProducts = result.products;
@@ -401,14 +402,16 @@ export default function InventoryTable() {
               Produtos Eliminados
             </Button>
 
-            <Link href="/settings" className="block">
-              <Button 
-                className="w-full bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white rounded-xl py-3.5 font-medium shadow-lg hover:shadow-purple-500/25 transition-all duration-300 transform hover:translate-y-[-2px]"
-              >
-                <FontAwesomeIcon icon={faCog} className="mr-2" />
-                Definições
-              </Button>
-            </Link>
+            {isAdmin && (
+              <Link href="/settings" className="block">
+                <Button 
+                  className="w-full bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white rounded-xl py-3.5 font-medium shadow-lg hover:shadow-purple-500/25 transition-all duration-300 transform hover:translate-y-[-2px]"
+                >
+                  <FontAwesomeIcon icon={faCog} className="mr-2" />
+                  Definições
+                </Button>
+              </Link>
+            )}
           </div>
         </div>
 
@@ -422,7 +425,8 @@ export default function InventoryTable() {
               <SelectContent>
                 <SelectItem value="Warehouse 1">Armazem 1</SelectItem>
                 <SelectItem value="Warehouse 2">Armazem 2</SelectItem>
-                <SelectItem value="Both">Ambos</SelectItem>
+                <SelectItem value="Warehouse 3">Armazem Norte</SelectItem>
+                <SelectItem value="All">Todos</SelectItem>
               </SelectContent>
             </Select>
 
@@ -737,8 +741,8 @@ export default function InventoryTable() {
       </Modal>
 
       {/* Add Product Modal - Redesigned */}
-      <Modal isOpen={addProductModalOpen} onClose={() => setAddProductModalOpen(false)}>
-        <div className="bg-gradient-to-b from-white to-slate-50 dark:from-slate-800 dark:to-slate-900 rounded-2xl overflow-hidden">
+      <Modal isOpen={addProductModalOpen} onClose={() => setAddProductModalOpen(false)} isWide>
+        <div className="bg-gradient-to-b from-white to-slate-50 dark:from-slate-800 dark:to-slate-900">
           {/* Header Section */}
           <div className="px-8 py-6 border-b border-slate-200 dark:border-slate-700">
             <div className="flex justify-between items-center">
@@ -761,7 +765,7 @@ export default function InventoryTable() {
 
           {/* Form Content */}
           <div className="p-8">
-            <div className="max-w-3xl mx-auto">
+            <div className="max-w-4xl mx-auto">
               <InventoryForm 
                 selectedWarehouse={selectedWarehouse} 
                 onSuccess={() => {
@@ -794,7 +798,7 @@ export default function InventoryTable() {
       <Modal 
         isOpen={deletedProductsModalOpen} 
         onClose={() => setDeletedProductsModalOpen(false)}
-        isWide={true}
+        isWide
       >
         <div className="divide-y divide-gray-100">
           <div className="px-6 py-4 flex justify-between items-center bg-gray-50">

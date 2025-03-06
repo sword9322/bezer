@@ -8,7 +8,7 @@ import { faUser, faCog, faSignOutAlt } from '@fortawesome/free-solid-svg-icons'
 import { toast } from 'sonner'
 
 export default function UserProfile() {
-  const { user, logout } = useAuth()
+  const { user, logout, isAdmin } = useAuth()
   const [isDropdownOpen, setIsDropdownOpen] = useState(false)
   const [showLogoutModal, setShowLogoutModal] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
@@ -75,17 +75,20 @@ export default function UserProfile() {
                 <span>Perfil</span>
               </a>
               
-              <a
-                href="#"
-                className="flex items-center px-4 py-3 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
-                onClick={() => {
-                  setIsDropdownOpen(false)
-                  router.push('/settings')
-                }}
-              >
-                <FontAwesomeIcon icon={faCog} className="w-5 h-5 text-gray-400 mr-3" />
-                <span>Configurações</span>
-              </a>
+              {/* Only show Settings option for admins */}
+              {isAdmin && (
+                <a
+                  href="#"
+                  className="flex items-center px-4 py-3 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
+                  onClick={() => {
+                    setIsDropdownOpen(false)
+                    router.push('/settings')
+                  }}
+                >
+                  <FontAwesomeIcon icon={faCog} className="w-5 h-5 text-gray-400 mr-3" />
+                  <span>Configurações</span>
+                </a>
+              )}
             </div>
 
             {/* Logout Button */}

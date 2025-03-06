@@ -8,11 +8,13 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faDownload } from '@fortawesome/free-solid-svg-icons'
 import { fetchBrands, addBrand, deleteBrand, downloadBrands } from '@/app/actions'
 import { toast } from 'sonner'
+import { useAuth } from '@/contexts/AuthContext'
 
 export default function BrandsTab() {
   const [brands, setBrands] = useState<string[]>([])
   const [newBrand, setNewBrand] = useState('')
   const [isLoading, setIsLoading] = useState(false)
+  const { currentUser } = useAuth()
 
   useEffect(() => {
     loadBrands()
@@ -28,17 +30,17 @@ export default function BrandsTab() {
     }
   }
 
-  const handleAddBrand = async (e: React.FormEvent) => {
-    e.preventDefault()
+  const handleAddBrand = async () => {
     if (!newBrand.trim()) return
-
+    
     setIsLoading(true)
     try {
-      await addBrand(newBrand)
+      await addBrand(newBrand, currentUser?.uid || 'unknown-user')
       await loadBrands()
       setNewBrand('')
       toast.success('Marca adicionada com sucesso')
-    } catch {
+    } catch (error) {
+      console.error('Error adding brand:', error)
       toast.error('Erro ao adicionar marca')
     } finally {
       setIsLoading(false)
@@ -50,7 +52,7 @@ export default function BrandsTab() {
 
     setIsLoading(true)
     try {
-      await deleteBrand(brand)
+      await deleteBrand(brand, currentUser?.uid || 'unknown-user')
       await loadBrands()
       toast.success('Marca removida com sucesso')
     } catch {

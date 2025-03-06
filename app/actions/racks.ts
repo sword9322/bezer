@@ -56,7 +56,10 @@ export async function getRacks(warehouse: string) {
     if (!rows) return []
 
     // Convert warehouse name to number and ensure it's a string
-    const warehouseNumber = warehouse === 'Warehouse 1' ? '1' : '2'
+    let warehouseNumber: string;
+    if (warehouse === 'Warehouse 1') warehouseNumber = '1';
+    else if (warehouse === 'Warehouse 2') warehouseNumber = '2';
+    else if (warehouse === 'Warehouse 3') warehouseNumber = '3';
 
     // Filter rows that have data and match the warehouse
     const racks = rows
@@ -68,7 +71,7 @@ export async function getRacks(warehouse: string) {
       )
       .map(row => ({
         id: row[0],
-        warehouse: row[1] === '1' ? 'Warehouse 1' : 'Warehouse 2'
+        warehouse: row[1] === '1' ? 'Warehouse 1' : row[1] === '2' ? 'Warehouse 2' : 'Warehouse 3'
       }))
 
     console.log(`Fetched racks for ${warehouse}:`, racks) // Debug log
@@ -88,7 +91,10 @@ export async function addRack(rack: { warehouse: string, id?: string }) {
 
     const rows = response.data.values || []
     const rackId = rack.id || String(rows.length + 1)
-    const warehouseNumber = rack.warehouse === 'Warehouse 1' ? '1' : '2'
+    let warehouseNumber: string = '1';  // Default value
+    if (rack.warehouse === 'Warehouse 1') warehouseNumber = '1';
+    else if (rack.warehouse === 'Warehouse 2') warehouseNumber = '2';
+    else if (rack.warehouse === 'Warehouse 3') warehouseNumber = '3';
 
     // Check if rack ID already exists in the same warehouse
     const isDuplicate = rows.some(row => 

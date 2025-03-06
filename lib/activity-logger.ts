@@ -1,8 +1,8 @@
 import { auth } from './firebase'
 
-interface Changes {
-  before: Record<string, unknown>;
-  after: Record<string, unknown>;
+export interface Changes {
+  before?: Record<string, unknown> | null;
+  after?: Record<string, unknown> | null;
 }
 
 export const logActivity = async (
