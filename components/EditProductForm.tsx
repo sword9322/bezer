@@ -39,9 +39,8 @@ export default function EditProductForm({ product, onUpdate, onCancel, isLoading
   const [racks, setRacks] = useState<string[]>([])
   const [customTipologiaInput, setCustomTipologiaInput] = useState('')
   const [selectedBrand, setSelectedBrand] = useState(product.brand || '')
-  const [brandCampaigns, setBrandCampaigns] = useState<string[]>([])
+  const [brandCampaigns, setBrandCampaigns] = useState<{ value: string; label: string }[]>([])
   const [isLoadingCampaigns, setIsLoadingCampaigns] = useState(false)
-  const [campanhaNomes] = useState<Record<string, string>>({})
 
   const selectedWarehouse = watch('warehouse')
 
@@ -120,8 +119,10 @@ export default function EditProductForm({ product, onUpdate, onCancel, isLoading
       
       setIsLoadingCampaigns(true);
       try {
-        const campaignIds = await loadCampaigns(selectedBrand);
-        setBrandCampaigns(campaignIds.map((campaign: { value: string; label: string }) => campaign.value));
+        const campaigns = await loadCampaigns(selectedBrand);
+        
+        // Armazenar os objetos completos, não só os IDs
+        setBrandCampaigns(campaigns);
       } catch (error) {
         console.error('Erro ao carregar campanhas:', error);
       } finally {
@@ -217,9 +218,9 @@ export default function EditProductForm({ product, onUpdate, onCancel, isLoading
                 disabled={!selectedBrand || isLoadingCampaigns}
               >
                 <option value="">Selecione uma campanha</option>
-                {brandCampaigns.map((campaignId) => (
-                  <option key={campaignId} value={campaignId}>
-                    {campanhaNomes[campaignId] || campaignId}
+                {brandCampaigns.map((campaign) => (
+                  <option key={campaign.value} value={campaign.value}>
+                    {campaign.label}
                   </option>
                 ))}
               </select>

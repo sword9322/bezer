@@ -143,17 +143,30 @@ export async function GET(request: NextRequest) {
     // Transform and filter logs
     let logs = response.data.values.map((row) => {
       try {
+        // Find the first item that looks like valid JSON (usually at index 5 or 9)
+        let changesData = null;
+        for (let i = 0; i < row.length; i++) {
+          if (row[i] && typeof row[i] === 'string' && (row[i].startsWith('{') || row[i].startsWith('['))) {
+            try {
+              changesData = JSON.parse(row[i]);
+              break;
+            } catch {
+              // Not valid JSON, continue searching
+            }
+          }
+        }
+        
         return {
           id: row[0] || '',
           timestamp: row[1] || new Date().toISOString(),
           actionType: row[2] || '',
           entityType: row[3] || '',
           entityId: row[4] || '',
-          changes: row[5] ? JSON.parse(row[5]) : null,
+          changes: changesData,
           userId: row[6] || '',
           userName: row[7] || '',
           userEmail: row[8] || '',
-          userRole: row[9] || '',
+          userRole: row[9] || ''
         }
       } catch (error) {
         console.error('Error parsing log row:', error, row)
