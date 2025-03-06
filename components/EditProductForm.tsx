@@ -139,7 +139,6 @@ export default function EditProductForm({ product, onUpdate, onCancel, isLoading
     }
     onUpdate(data);
   };
-
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target
     
