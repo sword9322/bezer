@@ -32,11 +32,12 @@ type CampanhaFormProps = {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess: (campanha: Campanha) => void;
+  campanha?: Campanha | null;
 };
 
 type Status = 'Ativo' | 'Inativo' | 'Planejado';
 
-export default function CampanhaForm({ isOpen, onOpenChange, onSuccess }: CampanhaFormProps) {
+export default function CampanhaForm({ isOpen, onOpenChange, onSuccess, campanha = null }: CampanhaFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
   const [marcas, setMarcas] = useState<{ value: string; label: string }[]>([]);
@@ -73,7 +74,37 @@ export default function CampanhaForm({ isOpen, onOpenChange, onSuccess }: Campan
     }
   }, [isOpen, toast]);
 
-  async function adicionarCampanha() {
+  useEffect(() => {
+    if (isOpen) {
+      if (campanha) {
+        setNovaCampanha({
+          nome: campanha.nome,
+          marcaId: campanha.marcaId,
+          dataInicio: campanha.dataInicio || '',
+          dataFim: campanha.dataFim || '',
+          descricao: campanha.descricao || '',
+          status: campanha.status || 'Ativo',
+        });
+      } else {
+        resetForm();
+      }
+    }
+  }, [isOpen, campanha]);
+
+  const resetForm = () => {
+    setNovaCampanha({
+      nome: "",
+      marcaId: "",
+      dataInicio: "",
+      dataFim: "",
+      descricao: "",
+      status: "Ativo",
+    });
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
     if (!novaCampanha.nome || !novaCampanha.marcaId) {
       toast({
         title: "Campos obrigatórios",
@@ -86,58 +117,65 @@ export default function CampanhaForm({ isOpen, onOpenChange, onSuccess }: Campan
     setIsSubmitting(true);
     
     try {
-      const response = await fetch("/api/campanhas", {
-        method: "POST",
+      const campanhaData = {
+        nome: novaCampanha.nome,
+        marcaId: novaCampanha.marcaId,
+        dataInicio: novaCampanha.dataInicio || undefined,
+        dataFim: novaCampanha.dataFim || undefined,
+        descricao: novaCampanha.descricao || undefined,
+        status: novaCampanha.status as Status,
+      };
+      
+      const isEditing = !!campanha;
+      const url = isEditing ? `/api/campanhas?id=${campanha?.id}` : '/api/campanhas';
+      const method = isEditing ? 'PUT' : 'POST';
+      
+      const response = await fetch(url, {
+        method,
         headers: {
-          "Content-Type": "application/json",
+          'Content-Type': 'application/json'
         },
-        body: JSON.stringify(novaCampanha),
+        body: JSON.stringify(campanhaData)
       });
       
-      if (!response.ok) {
-        throw new Error("Erro ao adicionar campanha");
-      }
+      const data = await response.json();
       
-      const result = await response.json();
-      
-      if (result.success && result.campanha) {
+      if (response.ok && data.success) {
+        const resultCampanha = isEditing 
+          ? { ...campanha, ...campanhaData } 
+          : data.campanha;
+          
         toast({
           title: "Sucesso",
-          description: "Campanha adicionada com sucesso.",
+          description: isEditing 
+            ? "Campanha atualizada com sucesso" 
+            : "Campanha adicionada com sucesso",
         });
         
-        onSuccess(result.campanha);
+        onSuccess(resultCampanha);
         onOpenChange(false);
-        setNovaCampanha({
-          nome: "",
-          marcaId: "",
-          dataInicio: "",
-          dataFim: "",
-          descricao: "",
-          status: "Ativo",
-        });
       } else {
-        throw new Error("Resposta inválida do servidor");
+        throw new Error(data.error || "Ocorreu um erro");
       }
     } catch (error) {
-      console.error("Erro ao adicionar campanha:", error);
+      console.error("Erro:", error);
       toast({
         title: "Erro",
-        description: "Falha ao adicionar campanha.",
+        description: "Falha ao processar campanha",
         variant: "destructive",
       });
     } finally {
       setIsSubmitting(false);
     }
-  }
+  };
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent 
-        className="sm:max-w-[500px]"
-      >
+      <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle>Adicionar Nova Campanha</DialogTitle>
+          <DialogTitle>
+            {campanha ? 'Editar Campanha' : 'Nova Campanha'}
+          </DialogTitle>
         </DialogHeader>
         
         <div className="grid gap-4 py-4">
@@ -222,27 +260,17 @@ export default function CampanhaForm({ isOpen, onOpenChange, onSuccess }: Campan
         </div>
         
         <DialogFooter>
-          <Button 
-            variant="outline" 
-            onClick={() => onOpenChange(false)}
-            disabled={isSubmitting}
-          >
-            Cancelar
-          </Button>
-          <Button 
-            onClick={adicionarCampanha} 
-            disabled={isSubmitting}
-          >
+          <Button type="submit" onClick={handleSubmit} disabled={isSubmitting}>
             {isSubmitting ? (
               <>
                 <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                 </svg>
-                Adicionando...
+                {campanha ? 'Atualizando...' : 'Adicionando...'}
               </>
             ) : (
-              'Adicionar'
+              campanha ? 'Atualizar' : 'Adicionar'
             )}
           </Button>
         </DialogFooter>

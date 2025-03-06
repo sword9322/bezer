@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Combobox } from "@/components/ui/combobox";
-import { Loader2, Plus, Trash } from "lucide-react";
+import { Loader2, Plus, Trash, Pencil } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { initializeApp, getApps } from 'firebase/app';
 import firebaseConfig from '@/lib/firebase';
@@ -31,6 +31,7 @@ export default function CampanhasTab() {
   
   // Adicionar estado para controlar loading durante remoção
   const [isDeleting, setIsDeleting] = useState(false);
+  const [editingCampanha, setEditingCampanha] = useState<Campanha | null>(null);
 
   // No início do componente, adicione:
   useEffect(() => {
@@ -133,6 +134,21 @@ export default function CampanhasTab() {
     }
   };
 
+  // Função para iniciar a edição de uma campanha
+  const handleEditCampanha = (campanha: Campanha) => {
+    setEditingCampanha(campanha);
+    setIsDialogOpen(true);
+  };
+
+  // Função para atualizar campanha editada no estado local
+  const handleCampanhaUpdated = (updatedCampanha: Campanha) => {
+    setCampanhas(
+      campanhas.map((campanha) => 
+        campanha.id === updatedCampanha.id ? updatedCampanha : campanha
+      )
+    );
+  };
+
   return (
     <div className="space-y-6">
       {/* Layout responsivo - flex-col em mobile, flex-row em desktop */}
@@ -203,18 +219,29 @@ export default function CampanhasTab() {
                           </span>
                         </td>
                         <td className="px-4 py-3 text-sm text-right">
-                          <Button 
-                            variant="ghost" 
-                            size="sm" 
-                            className="h-8 w-8 p-0"
-                            onClick={() => handleDeleteCampanha(campanha.id, campanha.nome)}
-                            disabled={isDeleting}
-                          >
-                            {isDeleting ? 
-                              <Loader2 className="h-4 w-4 animate-spin" /> : 
-                              <Trash className="h-4 w-4 text-red-500" />
-                            }
-                          </Button>
+                          <div className="flex justify-end space-x-2">
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              className="h-8 w-8 p-0"
+                              onClick={() => handleEditCampanha(campanha)}
+                              disabled={isDeleting}
+                            >
+                              <Pencil className="h-4 w-4 text-blue-500" />
+                            </Button>
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              className="h-8 w-8 p-0"
+                              onClick={() => handleDeleteCampanha(campanha.id, campanha.nome)}
+                              disabled={isDeleting}
+                            >
+                              {isDeleting ? 
+                                <Loader2 className="h-4 w-4 animate-spin" /> : 
+                                <Trash className="h-4 w-4 text-red-500" />
+                              }
+                            </Button>
+                          </div>
                         </td>
                       </tr>
                     );
@@ -226,11 +253,15 @@ export default function CampanhasTab() {
         </div>
       )}
       
-      {/* Componente de formulário separado */}
+      {/* Passar campanha para edição e handler de atualização */}
       <CampanhaForm 
         isOpen={isDialogOpen}
-        onOpenChange={setIsDialogOpen}
-        onSuccess={handleCampanhaAdded}
+        onOpenChange={(open) => {
+          setIsDialogOpen(open);
+          if (!open) setEditingCampanha(null);
+        }}
+        onSuccess={editingCampanha ? handleCampanhaUpdated : handleCampanhaAdded}
+        campanha={editingCampanha}
       />
     </div>
   );

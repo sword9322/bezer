@@ -244,4 +244,115 @@ export async function DELETE(request: Request) {
     console.error("Erro ao deletar campanha:", error);
     return NextResponse.json({ error: "Erro ao deletar campanha" }, { status: 500 });
   }
+}
+
+// Função para atualizar campanha existente
+export async function PUT(request: Request) {
+  // Inicialize o Firebase Admin
+  getFirebaseAdminApp();
+  
+  // Verificar autenticação
+  const cookieStore = cookies();
+  const token = cookieStore.get("firebase-token")?.value;
+  
+  if (!token) {
+    return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
+  }
+  
+  try {
+    // Verificar token com Firebase Admin
+    const decodedToken = await getAuth().verifyIdToken(token);
+    
+    // Obter ID da campanha a ser atualizada
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get("id");
+    
+    if (!id) {
+      return NextResponse.json({ error: "ID da campanha não fornecido" }, { status: 400 });
+    }
+    
+    // Receber dados atualizados da campanha
+    const campanhaData = await request.json();
+    
+    // Verificar dados obrigatórios
+    if (!campanhaData.nome || !campanhaData.marcaId) {
+      return NextResponse.json({ error: "Nome e marca são obrigatórios" }, { status: 400 });
+    }
+    
+    // Configurar autenticação Google
+    const jwt = new JWT({
+      email: process.env.GOOGLE_CLIENT_EMAIL,
+      key: process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, "\n"),
+      scopes: ["https://www.googleapis.com/auth/spreadsheets"],
+    });
+
+    const sheets = google.sheets({ version: "v4", auth: jwt });
+    
+    // Buscar todas as campanhas para encontrar a linha a ser atualizada
+    const response = await sheets.spreadsheets.values.get({
+      spreadsheetId: process.env.SPREADSHEET_ID,
+      range: "Campanhas!A:G",
+    });
+    
+    const rows = response.data.values || [];
+    const rowIndex = rows.findIndex(row => row[0] === id);
+    
+    if (rowIndex === -1) {
+      return NextResponse.json({ error: "Campanha não encontrada" }, { status: 404 });
+    }
+    
+    // Obter dados antigos para logging
+    const oldData = {
+      id: rows[rowIndex][0],
+      nome: rows[rowIndex][1],
+      marcaId: rows[rowIndex][2],
+      dataInicio: rows[rowIndex][3],
+      dataFim: rows[rowIndex][4],
+      descricao: rows[rowIndex][5],
+      status: rows[rowIndex][6],
+    };
+    
+    // Atualizar a linha correspondente à campanha
+    await sheets.spreadsheets.values.update({
+      spreadsheetId: process.env.SPREADSHEET_ID,
+      range: `Campanhas!A${rowIndex + 1}:G${rowIndex + 1}`,
+      valueInputOption: "USER_ENTERED",
+      requestBody: {
+        values: [[
+          id,
+          campanhaData.nome,
+          campanhaData.marcaId,
+          campanhaData.dataInicio || "",
+          campanhaData.dataFim || "",
+          campanhaData.descricao || "",
+          campanhaData.status || "Ativo"
+        ]]
+      }
+    });
+    
+    // Registrar atividade de atualização
+    await logActivity('updated', 'campaign', id, {
+      before: oldData,
+      after: {
+        id,
+        ...campanhaData
+      }
+    }, {
+      id: decodedToken.uid,
+      name: decodedToken.name || 'Unknown',
+      email: decodedToken.email || 'No email',
+      role: decodedToken.role || 'user'
+    });
+    
+    return NextResponse.json({ 
+      success: true, 
+      campanha: {
+        id,
+        ...campanhaData
+      }
+    });
+  } catch (error) {
+    console.error("Erro ao atualizar campanha:", error);
+    return NextResponse.json({ error: "Erro ao atualizar campanha" }, { status: 500 });
+  }
 } 
