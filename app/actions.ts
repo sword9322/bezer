@@ -913,7 +913,7 @@ export async function fetchRacksForWarehouse(warehouse: string) {
   }
 }
 
-export async function fetchCampaigns(brand: string) {
+export async function fetchCampaignsByBrand(brand: string) {
   try {
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId: SPREADSHEET_ID,
@@ -931,6 +931,64 @@ export async function fetchCampaigns(brand: string) {
   } catch (error) {
     console.error('Error fetching campaigns:', error);
     return [];
+  }
+}
+
+export async function fetchAllCampaigns() {
+  'use server'
+  try {
+    // Simulate fetching campaigns from Google Sheets
+    // In a real implementation, you would connect to Google Sheets API here
+    // Use correct API URL construction
+    const protocol = process.env.NODE_ENV === 'production' ? 'https' : 'http'
+    const host = process.env.VERCEL_URL || 'localhost:3000'
+    const apiBaseUrl = `${protocol}://${host}`
+    
+    const response = await fetch(`${apiBaseUrl}/api/campaigns`, {
+      cache: 'no-store',
+    })
+    
+    if (!response.ok) {
+      // Provide default campaigns if the API is not available yet
+      console.warn('Failed to fetch campaigns, using default values')
+      return ['Verão 2023', 'Inverno 2023', 'Primavera 2024', 'Verão 2024']
+    }
+    
+    const campaigns = await response.json()
+    return campaigns
+  } catch (error) {
+    console.error('Error fetching campaigns:', error)
+    // Return some default campaigns as fallback
+    return ['Verão 2023', 'Inverno 2023', 'Primavera 2024', 'Verão 2024', 'Outono 2024', 'Natal 2024']
+  }
+}
+
+export async function fetchLocations() {
+  'use server'
+  try {
+    // Simulate fetching locations from Google Sheets
+    // In a real implementation, you would connect to Google Sheets API here
+    // Use getApiUrl instead of process.env.NEXT_PUBLIC_API_URL which is undefined
+    const protocol = process.env.NODE_ENV === 'production' ? 'https' : 'http'
+    const host = process.env.VERCEL_URL || 'localhost:3000'
+    const apiBaseUrl = `${protocol}://${host}`
+    
+    const response = await fetch(`${apiBaseUrl}/api/locations`, {
+      cache: 'no-store',
+    })
+    
+    if (!response.ok) {
+      // Provide default locations if the API is not available yet
+      console.warn('Failed to fetch locations, using default values')
+      return ['Lisboa', 'Porto', 'Braga', 'Coimbra', 'Faro', 'Aveiro', 'Setúbal']
+    }
+    
+    const locations = await response.json()
+    return locations
+  } catch (error) {
+    console.error('Error fetching locations:', error)
+    // Return some default locations as fallback
+    return ['Lisboa', 'Porto', 'Braga', 'Coimbra', 'Faro', 'Aveiro', 'Setúbal']
   }
 }
 

@@ -35,6 +35,7 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@
 import { Input } from '@/components/ui/input'
 import { toast } from 'sonner'
 import { useAuth } from '@/contexts/AuthContext'
+import { Combobox } from '@/components/ui/combobox'
 
 export type Product = {
   ref: string
@@ -74,6 +75,7 @@ export default function InventoryTable() {
   const [uniqueCampaigns, setUniqueCampaigns] = useState<string[]>([]);
   const [loadingStates, setLoadingStates] = useState<{ [key: string]: boolean }>({});
   const [isUpdating, setIsUpdating] = useState(false);
+  const [isLoadingCampaigns, setIsLoadingCampaigns] = useState(false);
   const { user, userRole, isAdmin } = useAuth()
 
   const [filters, setFilters] = useState({
@@ -165,6 +167,41 @@ export default function InventoryTable() {
     setUniqueCampaigns(campaigns);
   }, [products]);
 
+  // New useEffect to filter campaigns by selected brand
+  useEffect(() => {
+    const loadCampaignsForBrand = async () => {
+      // If no brand selected, show all campaigns from products
+      if (!filters.brand) {
+        const allCampaigns = Array.from(new Set(products.map(p => p.campaign))).filter(Boolean);
+        setUniqueCampaigns(allCampaigns);
+        return;
+      }
+      
+      setIsLoadingCampaigns(true);
+      try {
+        const response = await fetch(`/api/campanhas?marcaId=${filters.brand}`);
+        const data = await response.json();
+        
+        if (data.campanhas) {
+          const campaignNames = data.campanhas
+            .filter((campanha: { status: string }) => campanha.status === "Ativo")
+            .map((campanha: { nome: string }) => campanha.nome);
+          
+          setUniqueCampaigns(campaignNames);
+        } else {
+          setUniqueCampaigns([]);
+        }
+      } catch (error) {
+        console.error("Error loading campaigns for brand:", error);
+        setUniqueCampaigns([]);
+      } finally {
+        setIsLoadingCampaigns(false);
+      }
+    };
+    
+    loadCampaignsForBrand();
+  }, [filters.brand, products]);
+
   const handleDelete = async (ref: string) => {
     if (loadingStates[ref]) return // Prevent duplicate submissions
     if (!user) {
@@ -253,6 +290,23 @@ export default function InventoryTable() {
   const handleFilterChange = (e: React.ChangeEvent<HTMLSelectElement | HTMLInputElement>) => {
     const { name, value } = e.target;
     setFilters({ ...filters, [name]: value });
+  };
+
+  const handleComboboxChange = (name: string, value: string) => {
+    setFilters({ ...filters, [name]: value });
+  };
+
+  const resetFilters = () => {
+    setFilters({
+      ref: '',
+      brand: '',
+      campaign: '',
+      date: '',
+      stock: '',
+      localidade: '',
+      tipologia: '',
+      notes: '',
+    });
   };
 
   const filteredProducts = products.filter(product => {
@@ -476,6 +530,18 @@ export default function InventoryTable() {
         {/* Filters Section */}
         {showFilters && (
           <div className="bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm rounded-2xl shadow-lg border border-slate-200/50 dark:border-slate-700/50 p-4 mb-6">
+            <div className="flex justify-between items-center mb-2">
+              <h3 className="text-sm font-medium text-slate-700 dark:text-slate-300">Filtros</h3>
+              <Button 
+                onClick={resetFilters} 
+                variant="outline" 
+                size="sm"
+                className="text-xs h-8 px-3 py-1 rounded-lg border-slate-300 text-slate-700 hover:bg-slate-100 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-700"
+              >
+                Limpar Filtros
+                <FontAwesomeIcon icon={faTimes} className="ml-2 text-xs" />
+              </Button>
+            </div>
             <div className="flex items-center gap-2 overflow-x-auto">
               <Input
                 placeholder="REF"
@@ -484,34 +550,63 @@ export default function InventoryTable() {
                 onChange={handleFilterChange}
                 className="rounded-xl w-32 flex-shrink-0"
               />
-              <select
-                name="brand"
-                value={filters.brand}
-                onChange={handleFilterChange}
-                className="rounded-xl w-32 flex-shrink-0 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600"
-              >
-                <option value="">Todas Marcas</option>
-                {brands.map((brand) => (
-                  <option key={brand} value={brand}>{brand}</option>
-                ))}
-              </select>
-              <select
-                name="campaign"
-                value={filters.campaign}
-                onChange={handleFilterChange}
-                className="rounded-xl w-32 flex-shrink-0 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600"
-              >
-                <option value="">Todas Campanhas</option>
-                {uniqueCampaigns.map((campaign) => (
-                  <option key={campaign} value={campaign}>{campaign}</option>
-                ))}
-              </select>
+              
+              {/* Brand Combobox with reset button */}
+              <div className="w-48 flex-shrink-0 relative">
+                <Combobox
+                  options={brands.map(brand => ({ value: brand, label: brand }))}
+                  value={filters.brand}
+                  onChange={(value) => handleComboboxChange('brand', value)}
+                  placeholder="Todas Marcas"
+                  searchPlaceholder="Procurar marca..."
+                  emptyMessage="Nenhuma marca encontrada."
+                  className="w-full"
+                />
+                {filters.brand && (
+                  <Button
+                    onClick={() => handleComboboxChange('brand', '')}
+                    className="absolute right-8 top-1/2 -translate-y-1/2 h-6 w-6 p-0 rounded-full bg-gray-200 dark:bg-gray-700"
+                    size="sm"
+                  >
+                    <FontAwesomeIcon icon={faTimes} className="h-3 w-3" />
+                  </Button>
+                )}
+              </div>
+              
+              {/* Campaign Combobox with reset button */}
+              <div className="w-48 flex-shrink-0 relative">
+                <Combobox
+                  options={uniqueCampaigns.map(campaign => ({ value: campaign, label: campaign }))}
+                  value={filters.campaign}
+                  onChange={(value) => handleComboboxChange('campaign', value)}
+                  placeholder={isLoadingCampaigns ? "Carregando..." : "Todas Campanhas"}
+                  searchPlaceholder="Procurar campanha..."
+                  emptyMessage={isLoadingCampaigns ? "Carregando campanhas..." : "Nenhuma campanha encontrada."}
+                  className="w-full"
+                />
+                {filters.campaign && (
+                  <Button
+                    onClick={() => handleComboboxChange('campaign', '')}
+                    className="absolute right-8 top-1/2 -translate-y-1/2 h-6 w-6 p-0 rounded-full bg-gray-200 dark:bg-gray-700"
+                    size="sm"
+                  >
+                    <FontAwesomeIcon icon={faTimes} className="h-3 w-3" />
+                  </Button>
+                )}
+                {isLoadingCampaigns && (
+                  <div className="absolute right-9 top-1/2 -translate-y-1/2">
+                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-gray-300 border-t-slate-600"></div>
+                  </div>
+                )}
+              </div>
+              
               <Input
                 placeholder="Data"
                 name="date"
+                type="date"
                 value={filters.date}
                 onChange={handleFilterChange}
-                className="rounded-xl w-32 flex-shrink-0"
+                className="rounded-xl w-40 flex-shrink-0"
               />
               <Input
                 placeholder="Stock"
@@ -527,17 +622,28 @@ export default function InventoryTable() {
                 onChange={handleFilterChange}
                 className="rounded-xl w-32 flex-shrink-0"
               />
-              <select
-                name="tipologia"
-                value={filters.tipologia}
-                onChange={handleFilterChange}
-                className="rounded-xl w-32 flex-shrink-0 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600"
-              >
-                <option value="">Todas Tipologias</option>
-                {tipologias.map((tipologia) => (
-                  <option key={tipologia} value={tipologia}>{tipologia}</option>
-                ))}
-              </select>
+              
+              {/* Tipologia Combobox with reset button */}
+              <div className="w-48 flex-shrink-0 relative">
+                <Combobox
+                  options={tipologias.map(tipologia => ({ value: tipologia, label: tipologia }))}
+                  value={filters.tipologia}
+                  onChange={(value) => handleComboboxChange('tipologia', value)}
+                  placeholder="Todas Tipologias"
+                  searchPlaceholder="Procurar tipologia..."
+                  emptyMessage="Nenhuma tipologia encontrada."
+                  className="w-full"
+                />
+                {filters.tipologia && (
+                  <Button
+                    onClick={() => handleComboboxChange('tipologia', '')}
+                    className="absolute right-8 top-1/2 -translate-y-1/2 h-6 w-6 p-0 rounded-full bg-gray-200 dark:bg-gray-700"
+                    size="sm"
+                  >
+                    <FontAwesomeIcon icon={faTimes} className="h-3 w-3" />
+                  </Button>
+                )}
+              </div>
             </div>
           </div>
         )}
