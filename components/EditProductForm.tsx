@@ -331,6 +331,12 @@ export default function EditProductForm({ product, onUpdate, onCancel, isLoading
                 {...register('tipologia', { required: 'Tipologia é obrigatória' })}
                 className="w-full rounded-xl border-slate-300 dark:border-slate-600 focus:border-blue-500 focus:ring-blue-500 dark:bg-slate-800 dark:text-white transition-all duration-200"
                 value={watch('tipologia')}
+                onChange={(e) => {
+                  handleChange(e);
+                  if (e.target.value === 'outro') {
+                    setCustomTipologiaInput('');
+                  }
+                }}
               >
                 {tipologias.map((tipologia) => (
                   <option key={tipologia} value={tipologia}>{tipologia}</option>
@@ -338,7 +344,7 @@ export default function EditProductForm({ product, onUpdate, onCancel, isLoading
                 <option value="outro">Outro (com descrição)</option>
               </select>
               
-              {customTipologiaInput === 'outro' && (
+              {watch('tipologia') === 'outro' && (
                 <Input
                   type="text"
                   placeholder="Descreva a tipologia"
